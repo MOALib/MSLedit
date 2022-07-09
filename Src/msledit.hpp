@@ -37,11 +37,15 @@
  */
 #define MXPSQL_MSLedit_HPP
 
+#if (!defined(__cplusplus))
+    #error This project can only be compiled as C++ code
+#endif
+
 #if defined(_MSC_VER)
-    #if _MSC_VER < 1800 
+    #if (_MSC_VER < 1800)
         #error This project needs atleast Visual Studio 2013
     #endif
-#elif __cplusplus <= 199711L
+#elif (defined(__cplusplus) && (__cplusplus <= 199711L))
     #error This project can only be compiled with a compiler that supports C++11
 #endif
 
@@ -931,9 +935,13 @@ namespace MXPSQL{
             std::vector<std::string> nw(buffer);
             size_t lsize = lineNums();
 
+            if(begin > end){
+                throw std::out_of_range("Attempted to begin beyond end");
+            }
+
             for(size_t i = 0; i < lsize; i++){
                 if(begin > 0 || end > 0){
-                    if(end > (long int) lsize) throw std::runtime_error("Attemting to edit beyond array bound");
+                    if(end > (long int) lsize) throw std::out_of_range("Attemting to edit beyond array bound");
 
                     long int cbegin = begin - 1;
                     long int cend = end - 1;
@@ -1415,7 +1423,9 @@ namespace MXPSQL{
                         run = false;
                     }
 
+
                     if(l.find_first_not_of(" ") == std::string::npos || l.length() < 1) continue;
+                    std::cout << std::endl; // for the betterness with pipes when piping
 
                     {
                         std::istringstream iss(l);
