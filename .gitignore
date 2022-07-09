@@ -1,0 +1,8 @@
+*.exe.stackdump
+**/*.exe.stackdump
+
+*.exe
+**/*.exe
+
+html/
+latex/

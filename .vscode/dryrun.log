@@ -1,0 +1,16 @@
+make.exe --dry-run --keep-going --print-directory
+make: Entering directory '/cygdrive/c/Users/Noah Lie/OneDrive/Desktop/cppbutibadasitnested/msledit'
+clear || cls
+ 
+echo "Delegating to bin-src makefile"
+cd "./bin-src" && make build
+ 
+make[1]: Entering directory '/cygdrive/c/Users/Noah Lie/OneDrive/Desktop/cppbutibadasitnested/msledit/bin-src'
+clear || cls
+ 
+g++ -std=c++11 -pedantic -Wall -Werror -fdiagnostics-color -g msledit.cpp -o bin/msledit.exe
+:
+make[1]: Leaving directory '/cygdrive/c/Users/Noah Lie/OneDrive/Desktop/cppbutibadasitnested/msledit/bin-src'
+ 
+make: Leaving directory '/cygdrive/c/Users/Noah Lie/OneDrive/Desktop/cppbutibadasitnested/msledit'
+ 
