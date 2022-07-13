@@ -33,6 +33,7 @@
 #include <cstdlib>
 #include <new>
 #include <string>
+#include <vector>
 #include "../Src/msledit.hpp"
 
 /**
@@ -48,6 +49,8 @@ int main(int argc, char** argv){
     MXPSQL::MSLedit::MSLedit* editor = nullptr;
     std::string file = "";
     std::string prompt = "";
+    bool nbanner = false;
+    bool cleardoc = false;
 
     for(int i = 1; i < argc; i++){
         std::string arg = std::string(argv[i]);
@@ -60,6 +63,8 @@ int main(int argc, char** argv){
             << "-h, --help, -? \t Show this fockin help screen" << std::endl
             << "-f, --file\tOpen a file" << std::endl
             << "-p, --prompt\tSet the prompt" << std::endl
+            << "-nb, --no-banner\tDisable welcome banner" << std::endl
+            << "-c, --clear-doc\tClear test document" << std::endl
             << std::endl;
             return status;
         }
@@ -94,6 +99,12 @@ int main(int argc, char** argv){
                 status = EXIT_FAILURE;
                 return status;
             }
+        }
+        else if(arg == "-nb" || arg == "--no-banner"){
+            nbanner = true;
+        }
+        else if(arg == "-c" || arg == "--clear-doc"){
+            cleardoc = true;
         }
         else{
             std::cerr << "What is this stupid bingus of an argument called " << arg << "? " << std::endl;
@@ -140,7 +151,23 @@ int main(int argc, char** argv){
         if(!prompt.empty()){
             editor->setKey("prompt", prompt);
         }
-        // editor->clear();
+        editor->setKey(editor->nobanner, ((nbanner) ? "true" : "false"));
+        /* {
+            editor->print(true, std::cout, -1, -1);
+            for(size_t i = 1; i < editor->length(); i++){
+                auto s = editor->getGridIndexFromStringIndex(i);
+                std::cout << s.first << "|" << s.second << "> '" << editor->charAtPosition(i) << "' == '" << editor->charAtGrid(s.first, s.second) << "'" << std::endl;
+
+                if(editor->charAtPosition(i) != editor->charAtGrid(s.first, s.second)){
+                    std::cerr << "not the same" << std::endl;
+                    status = EXIT_FAILURE;
+                    return status;
+                }
+            }
+        } */
+        if(cleardoc){
+            editor->clear();
+        }
         status = editor->repl();
     }
     catch(std::runtime_error& re){

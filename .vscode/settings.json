@@ -45,6 +45,9 @@
         "tuple": "cpp",
         "map": "cpp",
         "bit": "cpp",
-        "memory": "cpp"
+        "memory": "cpp",
+        "deque": "cpp",
+        "unordered_map": "cpp",
+        "functional": "cpp"
     }
 }

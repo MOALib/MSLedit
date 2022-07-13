@@ -64,6 +64,8 @@
 #include <string>
 #include <utility>
 #include <locale>
+#include <algorithm>
+#include <functional>
 
 #include <mutex>
 #include <thread>
@@ -78,10 +80,12 @@ namespace MXPSQL{
         /**
          * @brief String builder and line editor
          * 
-         * @note This class has mutexes for almost all functions for thread safety.
-         * @warning Due to use of recursive_mutex for thread safety, this class may throw std::system_error. Some functions may use 0 based indexing while others use 1 based indexing, for best results experiment with this class and browse the source and make a not about it.
+         * @note This class has mutexes for almost all functions for thread safety (and possibly reeterant).
+         * @warning Due to use of recursive_mutex for thread safety, this class may throw std::system_error, researching online shows that the mutex used here is hiding a bad design (but no, I will not replace that with wrapped functions becuase of big code). Some functions may use 0 based indexing while others use 1 based indexing, for best results experiment with this class and browse the source and make a not about it. May not be async-signal safe and cancel-safe.
          */
         class MSLedit{
+            private:
+
             protected:
             /**
              * @brief The internal buffer
@@ -94,7 +98,7 @@ namespace MXPSQL{
              */
             std::string file = "";
             /**
-             * @brief Syncrhonization mutex
+             * @brief Syncrhonization mutex, you can say this is the GIL (if this is a language interpreter)
              * 
              * @note This mutex is mentioned in the note of this class, this synchronizes the class
              */
@@ -106,6 +110,34 @@ namespace MXPSQL{
             std::map<std::string, std::string> strEditorConfig;
 
             public:
+
+            /**
+             * @brief The key for the prompt config
+             * 
+             */
+            const std::string nprompt = "prompt";
+            /**
+             * @brief The no system config key
+             * 
+             */
+            const std::string nosystem = "nosystem";
+            /**
+             * @brief Say goodbye to the nice warn greeting of the banner confik gey
+             * 
+             */
+            const std::string nobanner = "nobanner";
+
+            /**
+             * @brief Handles other operations in the MSLedit REPL
+             * 
+             * @details
+             * 
+             * If empty, will do nothing
+             * 
+             * Arguments for handlers: begin, args, arglen, out, input, error
+             * 
+             */
+            std::function<int(std::string, std::vector<std::string>, size_t, std::ostream&, std::istream&, std::ostream&)> replBeginHandler;
 
             /**
              * @brief Construct a new MSLedit object with initializations
@@ -188,12 +220,35 @@ namespace MXPSQL{
              */
             std::string stringAtLine(size_t line);
             /**
+             * @brief Get the line number and the index of the vector grid from the string index
+             * 
+             * @param index the index of the string
+             * @return std::pair<size_t, size_t> the grid index. First is the line number (starts from 1), second is the index of the line.
+             * 
+             * @note the arguents begins with 1 instead of 0
+             * 
+             * @warning default implementation (the one in the header file) is SLOW AS A SLOTH (SLOTHY) and broken.
+             */
+            std::pair<size_t, size_t> getGridIndexFromStringIndex(size_t strindex);
+            /**
              * @brief Get a character from an index
              * 
              * @param index the index
              * @return char the character at that index
+             * 
+             * @note begin with 1 instead of 0
              */
             char charAtPosition(size_t index);
+            /**
+             * @brief Get the character from the vector of string
+             * 
+             * @param line the line number
+             * @param index the index of the string in that line
+             * @return char the character
+             * 
+             * @note begin with 1 instead of 0
+             */
+            char charAtGrid(size_t line, size_t index);
 
             /**
              * @brief Open a file for content
@@ -220,14 +275,36 @@ namespace MXPSQL{
              */
             std::string getText();
             /**
+             * @brief Get the Text object as an unformatted string
+             * 
+             * @return std::string that big string
+             */
+            std::string str();
+            /**
              * @brief Get the Text object
              * 
              * @param formatted should be formatted with a line numbering?
              * @param begin which line should be the starting point? -1 or below for the very beginning
              * @param end which line should be the ending point? -1 or below for the very end (all)
              * @return std::string the text
+             * 
+             * @note the begin and end arguments should begin with 1
              */
             std::string getText(bool formatted, long int begin, long int end);
+            /**
+             * @brief Set the current text to the other instance
+             * 
+             * @param other_miss_ledit_instance that other instance
+             */
+            void setInstance(MSLedit& other_miss_ledit_instance);
+            /**
+             * @brief Like setInstance, but swaps the content instead of copying
+             * 
+             * @param other_miss_ledit_instance that other instance
+             * 
+             * @see setInstance
+             */
+            void swap(MSLedit& other_miss_ledit_instance);
             /**
              * @brief Set the internal buffer from a C-Style string
              * 
@@ -263,17 +340,29 @@ namespace MXPSQL{
              */
             const char* getConstCString(bool formatted, long int begin, long int end);
             /**
-             * @brief Set the internal buffer
+             * @brief Set the internal buffer from a vector of string
              * 
-             * @param buffer the buffer to set the internal buffer to
+             * @param buffer the string buffer to set the internal buffer to
              */
             void setBuffer(std::vector<std::string> buffer);
             /**
-             * @brief Get the internal buffer
+             * @brief Get the internal buffer as a vector of string
              * 
-             * @return std::vector<std::string> the internal buffer
+             * @return std::vector<std::string> the internal buffer as a vector of string
              */
             std::vector<std::string> getBuffer();
+            /**
+             * @brief Set the internal buffer from a vector of characters
+             * 
+             * @param cbuffer the character buffer to set the internal buffer to
+             */
+            void setBuffer(std::vector<char> cbuffer);
+            /**
+             * @brief Get the internal buffer as a vector of string
+             * 
+             * @return std::vector<char> the internal buffer as a vector of string
+             */
+            std::vector<char> getCBuffer();
 
             /**
              * @brief Print the current text to std::cout, internally uses the ostream version
@@ -332,7 +421,7 @@ namespace MXPSQL{
              * @brief Search a string
              * 
              * @param text2search the search string
-             * @return std::pair<size_t, size_t> the first found instance of a string, else both is std::string::npos
+             * @return std::pair<size_t, size_t> the first found instance of a string, else both is std::string::npos. first is line, second is the index of the needle in that line
              */
             std::pair<size_t, size_t> search(std::string text2search);
             /**
@@ -340,7 +429,7 @@ namespace MXPSQL{
              * 
              * @param text2search the string to search
              * @param begin_line the starting line
-             * @return std::pair<size_t, size_t> the first found instance of a string, else both is std::string::npos
+             * @return std::pair<size_t, size_t> the first found instance of a string, else both is std::string::npos. first is line, second is the index of the needle in that line
              */
             std::pair<size_t, size_t> search(std::string text2search, size_t begin_line);
             /**
@@ -349,7 +438,9 @@ namespace MXPSQL{
              * @param text2search the string to search
              * @param begin_line the starting line
              * @param counts how much instance to look for, use std::string::npos for as much as possible
-             * @return std::vector<std::pair<size_t, size_t>> all instances of the searched string
+             * @return std::vector<std::pair<size_t, size_t>> all instances of the searched string. Element pairs: first is line, second is the index of the needle in that line
+             * 
+             * @note begin with 1 instead of 0
              */
             std::vector<std::pair<size_t, size_t>> search(std::string text2search, size_t begin_line, size_t counts);
             /**
@@ -364,12 +455,18 @@ namespace MXPSQL{
              * 
              * @param index the character index
              * @param character the character
+             * 
+             * @note begin with 1 for the linenum instead of 0
              */
             void editChar(int index, char character);
             /**
              * @brief Delete a line
              * 
              * @param linenum the line number to delete
+             * 
+             * @note See the note in editline
+             * 
+             * @see editLine
              */
             void deleteAtLine(int linenum);
             /**
@@ -606,6 +703,34 @@ namespace MXPSQL{
              */
             void setConfig(std::map<std::string, std::string> c2);
             /**
+             * @brief Set the config from a config file
+             * 
+             * @details
+             * 
+             * The format is the following:
+             * 
+             * # Comment
+             * Key1=Val1
+             * A=Out
+             * 
+             * @param configPath the path to the config file
+             */
+            void parseConfig(std::string configPath);
+            /**
+             * @brief Build a config file from the config
+             * 
+             * @details
+             * 
+             * The format is the following:
+             * 
+             * # Comment
+             * Key1=Val1
+             * A=Out
+             * 
+             * @return std::string that config file
+             */
+            std::string buildConfig();
+            /**
              * @brief Get the Config as a map
              * 
              * @return std::map<std::string, std::string> the config map
@@ -639,7 +764,7 @@ namespace MXPSQL{
              * 
              * @details
              * 
-             * Start the REPL using the default prompt from the "prompt" key in the config and use std::cout, std::cin, std::cerr.
+             * Start the REPL using the default prompt from the prompt key in the config and use std::cout, std::cin, std::cerr.
              * 
              * @return int the status code of the REPL
              */
@@ -674,7 +799,7 @@ namespace MXPSQL{
              * @param str the string
              * @return int the important thing is that if this returns 0, equal
              */
-            int compare(std::string str);
+            int compare(std::string mystr);
             /**
              * @brief Compare this class instance to another instance
              * 
@@ -805,13 +930,14 @@ namespace MXPSQL{
 
         MSLedit::MSLedit(){
             std::unique_lock<std::recursive_mutex> lock(loctex);
-            setKey("prompt", "MSLedit> ");
-            setKey("nosystem", "false");
+            setKey(nprompt, "MSLedit> ");
+            setKey(nosystem, "false");
+            setKey(nobanner, "false");
         }
 
         MSLedit::MSLedit(MSLedit& ledit) : MSLedit() {
             std::unique_lock<std::recursive_mutex> lock(loctex);
-            this->setText(ledit.getText(false, -1, -1));
+            this->setText(ledit.str());
             this->setConfig(ledit.getConfig());
         }
 
@@ -849,31 +975,74 @@ namespace MXPSQL{
 
         size_t MSLedit::length(){
             std::unique_lock<std::recursive_mutex> lock(loctex);
-            return getText(false, -1, -1).length();
+            return str().length();
         }
 
         size_t MSLedit::size(){
             std::unique_lock<std::recursive_mutex> lock(loctex);
-            return getText(false, -1, -1).size();
+            return str().size();
         }
 
         std::string MSLedit::stringAtLine(size_t line){
             std::unique_lock<std::recursive_mutex> lock(loctex);
             if(line > lineNums() || line < 1){
-                throw std::runtime_error("Attempting to access beyond array bounds");
+                throw std::out_of_range("Attempting to access beyond array bounds");
             }
 
             return buffer.at(line-1);
         }
 
+        std::pair<size_t, size_t> MSLedit::getGridIndexFromStringIndex(size_t strindex){
+            std::unique_lock<std::recursive_mutex> lock(loctex);
+            size_t line = 1;
+            size_t index = 1;
+
+            if(strindex > length() || strindex < 1){
+                throw std::out_of_range("Attempting to access beyond array bounds");
+            }
+
+            char c = ' ';
+            for(size_t i = 0; i < strindex-1; i++, index++){
+                c = charAtPosition(i+1);
+                if(c == '\n'){
+                    line++;
+                    index = 1;
+                    std::cout << "yeah";
+                }
+            }
+
+
+            return std::make_pair(line, index+1);
+        }
+
         char MSLedit::charAtPosition(size_t index){
             std::unique_lock<std::recursive_mutex> lock(loctex);
-            std::string t = getText(false, -1, -1);
+            std::string t = str();
             if(index < 1 || index > length()){
-                throw std::runtime_error("Attempting to access beyond array bounds");
+                throw std::out_of_range("Attempting to access beyond array bounds");
             }
 
             return t.at(index);
+        }
+
+        char MSLedit::charAtGrid(size_t line, size_t index){
+            std::unique_lock<std::recursive_mutex> lock(loctex);
+            char c = ' ';
+            if((line < 1 || line > lineNums())){
+                throw std::out_of_range("Attempting to access beyond array bounds");
+            }
+
+            std::string t = stringAtLine(line);
+            if((line+1) <= lineNums()){
+                t += '\n';
+            }
+            if(index < 1 || index > t.size()){
+                throw std::out_of_range("Attempting to access beyond string bounds");
+            }
+
+            c = t.at(index-1);
+
+            return c;
         }
 
 
@@ -909,7 +1078,7 @@ namespace MXPSQL{
                 return;
             }
             else{
-                std::string text = getText(false, -1, -1);
+                std::string text = str();
                 fstream.write(text.c_str(), length());
                 file = path;
             }
@@ -970,9 +1139,26 @@ namespace MXPSQL{
             return str;
         }
 
+        void MSLedit::setInstance(MSLedit& other_miss_ledit_instance){
+            std::unique_lock<std::recursive_mutex> lock(loctex);
+            setText(other_miss_ledit_instance.str());
+        }
+
+        void MSLedit::swap(MSLedit& other_miss_ledit_instance){
+            std::unique_lock<std::recursive_mutex> lock(loctex);
+            std::string tmp = other_miss_ledit_instance.str();
+            other_miss_ledit_instance.setText(str());
+            setText(tmp);
+        }
+
         std::string MSLedit::getText(){
             std::unique_lock<std::recursive_mutex> lock(loctex);
             return getText(true, -1, -1);
+        }
+
+        std::string MSLedit::str(){
+            std::unique_lock<std::recursive_mutex> lock(loctex);
+            return getText(false, -1, -1);
         }
 
         void MSLedit::setCString(char* cstr){
@@ -1003,6 +1189,13 @@ namespace MXPSQL{
         std::vector<std::string> MSLedit::getBuffer(){
             std::unique_lock<std::recursive_mutex> lock(loctex);
             return buffer;
+        }
+
+        void MSLedit::setBuffer(std::vector<char> cbuffer){
+            std::unique_lock<std::recursive_mutex> lock(loctex);
+            std::vector<char> tmpcbuffer(cbuffer);
+            std::string s(tmpcbuffer.begin(), tmpcbuffer.end());
+            setText(s);
         }
 
 
@@ -1047,7 +1240,7 @@ namespace MXPSQL{
 
         void MSLedit::insertAtLine(int linenum, std::string line){
             std::unique_lock<std::recursive_mutex> lock(loctex);
-            if(linenum > (int) lineNums() || linenum < 1) throw std::runtime_error("Attempting to edit beyond array bound");
+            if(linenum > (int) lineNums() || linenum < 1) throw std::out_of_range("Attempting to edit beyond array bound");
             std::vector<std::string> tmpbuffer(buffer);
             std::istringstream iss(line);
             std::string token;
@@ -1079,7 +1272,7 @@ namespace MXPSQL{
                 while(pos != std::string::npos){
                     poses.push_back(std::make_pair(i, pos));
                     c++;
-                    pos = line.find(text2search, pos+1);
+                    pos = line.find(text2search, pos);
                 }
             }
 
@@ -1088,7 +1281,7 @@ namespace MXPSQL{
 
         void MSLedit::editLine(int linenum, std::string line){
             std::unique_lock<std::recursive_mutex> lock(loctex);
-            if(linenum > (int) lineNums() || linenum < 1) throw std::runtime_error("Attempting to edit beyond array bound");
+            if(linenum > (int) lineNums() || linenum < 1) throw std::out_of_range("Attempting to edit beyond array bound");
             std::istringstream iss(line);
             std::string token;
             for(int i = 0, nln = linenum; std::getline(iss, token, '\n');i++, nln++)
@@ -1104,15 +1297,15 @@ namespace MXPSQL{
 
         void MSLedit::editChar(int index, char character){
             std::unique_lock<std::recursive_mutex> lock(loctex);
-            std::string t = getText(false, -1, -1);
-            if(index > (int) length() || index < 1) throw std::runtime_error("Attempting to edit beyond array beyond");
+            std::string t = str();
+            if(index > (int) length() || index < 1) throw std::out_of_range("Attempting to edit beyond array beyond");
             t[index-1] = character;
             setText(t);
         }
 
         void MSLedit::deleteAtLine(int linenum){
             std::unique_lock<std::recursive_mutex> lock(loctex);
-            if(linenum > (int) lineNums() || linenum < 1) throw std::runtime_error("Attempting to print beyond array bound");
+            if(linenum > (int) lineNums() || linenum < 1) throw std::out_of_range("Attempting to print beyond array bound");
             buffer.erase(buffer.begin() + linenum - 1);
         }
 
@@ -1186,7 +1379,7 @@ namespace MXPSQL{
 
         void MSLedit::append(MSLedit miss){
             std::unique_lock<std::recursive_mutex> lock(loctex);
-            append(miss.getText(false, -1, -1));
+            append(miss.str());
         }
 
         void MSLedit::append(void* ptr){
@@ -1242,10 +1435,10 @@ namespace MXPSQL{
 
         void MSLedit::insert(size_t position, std::string estr){
             std::unique_lock<std::recursive_mutex> lock(loctex);
-            std::string str = getText(false, -1, -1);
-            str.insert(position, estr);
+            std::string tstr = str();
+            tstr.insert(position, estr);
 
-            setText(str);
+            setText(tstr);
         }
 
         void MSLedit::insert(size_t position, MSLedit miss){
@@ -1282,14 +1475,14 @@ namespace MXPSQL{
 
         void MSLedit::deleteAt(size_t begin, size_t end){
             std::unique_lock<std::recursive_mutex> lock(loctex);
-            std::string t = getText(false, -1, -1);
+            std::string t = str();
             t.erase(begin, end);
             setText(t);
         }
 
         void MSLedit::deleteCharAt(size_t index){
             std::unique_lock<std::recursive_mutex> lock(loctex);
-            std::string t = getText(false, -1, -1);
+            std::string t = str();
             t.erase(index, 1);
             setText(t);
         }
@@ -1297,19 +1490,19 @@ namespace MXPSQL{
 
         size_t MSLedit::indexOf(std::string text){
             std::unique_lock<std::recursive_mutex> lock(loctex);
-            std::string t = getText(false, -1, -1);
+            std::string t = str();
             return t.find(text);
         }
 
         size_t MSLedit::indexOf(std::string text, size_t begin){
             std::unique_lock<std::recursive_mutex> lock(loctex);
-            return getText(false, -1, -1).find(text, begin);
+            return str().find(text, begin);
         }
 
 
         std::vector<std::string> MSLedit::split(char delimiter){
             std::vector<std::string> misses;
-            std::string t = getText(false, -1, -1);
+            std::string t = str();
             std::string token;
             std::istringstream iss(t);
             for(token="";std::getline(iss, token, delimiter);misses.push_back(token));
@@ -1318,7 +1511,7 @@ namespace MXPSQL{
 
         std::vector<std::string> MSLedit::split(std::string delimiter){
             std::vector<std::string> misses;
-            std::string t = getText(false, -1, -1);
+            std::string t = str();
             size_t start = 0;
             size_t end = t.find(delimiter);
             while (end != std::string::npos) {
@@ -1334,18 +1527,18 @@ namespace MXPSQL{
         
         std::string MSLedit::substring(size_t pos){
             std::unique_lock<std::recursive_mutex> lock(loctex);
-            return getText(false, -1, -1).substr(pos);
+            return str().substr(pos);
         }
 
         std::string MSLedit::substring(size_t pos, size_t end){
             std::unique_lock<std::recursive_mutex> lock(loctex);
-            return getText(false, -1, -1).substr(pos, end);
+            return str().substr(pos, end);
         }
 
 
         void MSLedit::reverse(){
             std::unique_lock<std::recursive_mutex> lock(loctex);
-            std::string t = getText(false, -1, -1);
+            std::string t = str();
             std::string rt(t.rbegin(), t.rend());
             setText(rt);
         }
@@ -1354,6 +1547,45 @@ namespace MXPSQL{
         void MSLedit::setConfig(std::map<std::string, std::string> c2){
             std::unique_lock<std::recursive_mutex> lock(loctex);
             strEditorConfig = c2;
+        }
+
+        void MSLedit::parseConfig(std::string configPath){
+            std::unique_lock<std::recursive_mutex> lock(loctex);
+            std::map<std::string, std::string>& data = strEditorConfig;
+            std::ifstream cFile(configPath);
+            if (cFile.is_open() && cFile.good()) {
+                std::string line;
+                while (getline(cFile, line)) {
+                    line.erase(std::remove_if(line.begin(), line.end(), isspace), line.end());
+                    if (line[0] == '#' || line.empty()) {
+                        continue;
+                    } else if (line.find('#')) {
+                        line = line.substr(0, line.find('#'));
+                    }
+                    std::istringstream iss(line);
+                    std::string strr;
+                    while (std::getline(iss, strr, ',')) {
+                        auto delimiterPos = strr.find("=");
+                        auto name         = strr.substr(0, delimiterPos);
+                        std::string value      = strr.substr(delimiterPos + 1);
+                        // std::cout << name << " " << value << '\n';
+                        data[name] = value;
+                    }
+                }
+            } else {
+                if(cFile.is_open()) cFile.close();
+                throw std::runtime_error("File '" + configPath + "' not found");
+            }
+        }
+
+        std::string MSLedit::buildConfig(){
+            std::unique_lock<std::recursive_mutex> lock(loctex);
+            std::map<std::string, std::string>& data = strEditorConfig;
+            std::stringstream ss;
+            for(auto const& item : data){
+                ss << item.first << "=" << item.second << std::endl;
+            }
+            return ss.str();
         }
 
         std::map<std::string, std::string> MSLedit::getConfig(){
@@ -1382,7 +1614,7 @@ namespace MXPSQL{
             std::string prompt = "> ";
             {
                 std::unique_lock<std::recursive_mutex> lock(loctex);
-                if(keyExists("prompt")) prompt = getKey("prompt");
+                if(keyExists(nprompt)) prompt = getKey(nprompt);
             }
 
             return repl(prompt);
@@ -1399,17 +1631,25 @@ namespace MXPSQL{
             std::vector<std::string> ls;
 
             {
-                size_t s = 0;
-                std::vector<std::string> banners{"MSLedit", "Written by MXPSQL", "Entering REPL", "Type 'h' for help"};
-                std::string banner = "";
-                for(std::string bnr : banners){
-                    size_t s2 = bnr.length() + 5;
-                    if(s2 > s){
-                        s = s2;
+            bool allowBanner = true;
+            {
+                std::unique_lock<std::recursive_mutex> lock(loctex);
+                if(keyExists(nobanner)) allowBanner = (getKey(nobanner) != "true");
+            }
+
+                if(allowBanner){
+                    size_t s = 0;
+                    std::vector<std::string> banners{"MSLedit", "Written by MXPSQL", "Entering REPL", "Type 'h' for help"};
+                    std::string banner = "";
+                    for(std::string bnr : banners){
+                        size_t s2 = bnr.length() + 5;
+                        if(s2 > s){
+                            s = s2;
+                        }
+                        out << bnr << std::endl;
                     }
-                    out << bnr << std::endl;
+                    out << std::string(s, '=') << std::endl;
                 }
-                out << std::string(s, '=') << std::endl;
             }
 
             while(run){
@@ -1475,9 +1715,11 @@ namespace MXPSQL{
                         << "q, quit, exit: Exits the REPL. Usage example: 'q'" << std::endl
                         << "h, help: Prints this help message. Usage example: 'help'" << std::endl
                         << "v, view, p, print: Prints the file. Usage example: 'view' or 'view [line begin] [line end]" << std::endl
-                        << "aae, appendAtEnd: Append a line at the end of document. Usage example: 'aae [your line]'" << std::endl
+                        << "aae, appendAtEnd: Append a line at the end of document. Usage example: 'aae [your text here]'" << std::endl
+                        << "anlae, appendNewLineAtEnd: Append newline at the end. Usage example: 'anlae'" << std::endl
                         << "aal, appendAtLine: Append text to a line. Usage example: 'aal [your line] [your text here]'" << std::endl
                         << "ial, insertAtLine: Insert text before a line. Usage example: 'ial [your line] [your text here]'" << std::endl
+                        << "inlal, insertNewLineAtLine: Insert a newline before a line. Usage example: 'inlal [your line]'" << std::endl
                         << "s, search: Search for text. Usage example: 'search [text]" << std::endl
                         << "ss, ssearch: Search for text from a line and beyond. Usage example: 'search [line] [text]" << std::endl
                         << "el, editLine: Edit a line. Usage example: 'el [line] [your text]" << std::endl
@@ -1514,10 +1756,10 @@ namespace MXPSQL{
                                 err << "Invalid arguments provided, message: '" << ia.what() << "'" << std::endl;
                             }
                             catch(std::out_of_range& ooa){
-                                err << "Arguments is out of range, message: " << ooa.what() << "'" << std::endl;
+                                err << "Arguments is out of range, did you try to view beyond the limit? message: " << ooa.what() << "'" << std::endl;
                             }
                             catch(std::runtime_error& re){
-                                err << "An error had occured, did you try to view beyond the limit? "
+                                err << "An error had occured."
                                 << std::endl << "Here is the message btw: '" << re.what() << "'"
                                 << std::endl;
                             }
@@ -1540,6 +1782,9 @@ namespace MXPSQL{
 
                             appendAtEnd(ss.str());
                         }
+                    }
+                    else if(begin == "anlae" || begin == "appendNewLineAtEnd"){
+                        appendNewLine();
                     }
                     else if(begin == "aal" || begin == "appendAtLine"){
                         if(arglen < 2){
@@ -1567,10 +1812,10 @@ namespace MXPSQL{
                                 std::endl << ". If you see stoi on the message, that second input is wrong" << std::endl;
                             }
                             catch(std::out_of_range& ooa){
-                                err << "Second argument is out of range or some problem occured, message: " << ooa.what() << "'" << std::endl;
+                                err << "Second argument is out of range or some problem occured, did you try to edit beyond the limit? message: " << ooa.what() << "'" << std::endl;
                             }
                             catch(std::runtime_error& re){
-                                err << "An error had occured, did you try to edit beyond the limit? "
+                                err << "An error had occured."
                                 << std::endl << "Here is the message btw: '" << re.what() << "'"
                                 << std::endl;
                             }
@@ -1602,10 +1847,36 @@ namespace MXPSQL{
                                 std::endl << ". If you see stoi on the message, that second input is wrong" << std::endl;
                             }
                             catch(std::out_of_range& ooa){
-                                err << "Second argument is out of range or some problem occured, message: " << ooa.what() << "'" << std::endl;
+                                err << "Second argument is out of range or some problem occured, did you try to edit beyond the limit? message: " << ooa.what() << "'" << std::endl;
                             }
                             catch(std::runtime_error& re){
-                                err << "An error had occured, did you try to edit beyond the limit? "
+                                err << "An error had occured."
+                                << std::endl << "Here is the message btw: '" << re.what() << "'"
+                                << std::endl;
+                            }
+                        }
+                    }
+                    else if(begin == "inlal" || begin == "insertNewLineAtLine"){
+                        if(arglen < 1){
+                            err << "Missing arguments to '" << begin << "'" << std::endl;
+                        }
+                        else{
+                            try{
+                                std::vector<std::string> slicedargs(args);
+                                int line = stoi(slicedargs[0]);
+                                slicedargs.erase(slicedargs.begin());
+
+                                insertAtLine(line, std::string("\n"));
+                            }
+                            catch(std::invalid_argument& ia){
+                                err << "Second argument provided is invalid, message: '" << ia.what() << "'" <<
+                                std::endl << ". If you see stoi on the message, that second input is wrong" << std::endl;
+                            }
+                            catch(std::out_of_range& ooa){
+                                err << "Second argument is out of range or some problem occured, did you try to edit beyond the limit? message: " << ooa.what() << "'" << std::endl;
+                            }
+                            catch(std::runtime_error& re){
+                                err << "An error had occured. "
                                 << std::endl << "Here is the message btw: '" << re.what() << "'"
                                 << std::endl;
                             }
@@ -1700,10 +1971,10 @@ namespace MXPSQL{
                                 std::endl << ". If you see stoi on the message, that second input is wrong" << std::endl;
                             }
                             catch(std::out_of_range& ooa){
-                                err << "Second argument is out of range or some problem occured, message: " << ooa.what() << "'" << std::endl;
+                                err << "Second argument is out of range or some problem occured, did you try to edit beyond the limit? message: " << ooa.what() << "'" << std::endl;
                             }
                             catch(std::runtime_error& re){
-                                err << "An error had occured, did you try to edit beyond the limit? "
+                                err << "An error had occured. "
                                 << std::endl << "Here is the message btw: '" << re.what() << "'"
                                 << std::endl;
                             }
@@ -1724,10 +1995,10 @@ namespace MXPSQL{
                                 std::endl << ". If you see stoi on the message, that second input is wrong" << std::endl;
                             }
                             catch(std::out_of_range& ooa){
-                                err << "Second argument is out of range or some problem occured, message: " << ooa.what() << "'" << std::endl;
+                                err << "Second argument is out of range or some problem occured, did you try to edit beyond the limit, message: " << ooa.what() << "'" << std::endl;
                             }
                             catch(std::runtime_error& re){
-                                err << "An error had occured, did you try to edit beyond the limit? "
+                                err << "An error had occured. "
                                 << std::endl << "Here is the message btw: '" << re.what() << "'"
                                 << std::endl;
                             }
@@ -1869,7 +2140,7 @@ namespace MXPSQL{
                         bool allow = true;
                         {
                             std::unique_lock<std::recursive_mutex> lock(loctex);
-                            if(keyExists("nosystem")) allow = (getKey("nosystem") != "true");
+                            if(keyExists(nosystem)) allow = (getKey(nosystem) != "true");
                         }
                         if(!allow){
                             err << "This command uses the function 'System' and it is disabled. Not sorry at all you cannot do this." << std::endl;
@@ -1899,7 +2170,15 @@ namespace MXPSQL{
                         out << "?" << std::endl;
                     }
                     else{
-                        err << "A command called '" + begin + "' does not want to exist. (Not found)" << std::endl;
+                        int hstatus = EXIT_FAILURE;
+
+                        if(((replBeginHandler) && (replBeginHandler != nullptr))){
+                            hstatus = replBeginHandler(begin, args, arglen, out, in, err);
+                        }
+
+                        if(hstatus != EXIT_SUCCESS) {
+                            err << "A command called '" + begin + "' does not want to exist. (Not found)" << std::endl;
+                        }
                     }
                 }
                 catch(std::exception& e){
@@ -1915,12 +2194,12 @@ namespace MXPSQL{
         }
 
 
-        int MSLedit::compare(std::string str){
-            return getText(false, -1, -1).compare(str);
+        int MSLedit::compare(std::string mystr){
+            return str().compare(mystr);
         }
 
         int MSLedit::compare(MSLedit& miss){
-            return compare(miss.getText(false, -1, -1));
+            return compare(miss.str());
         }
 
         int MSLedit::compare(char* cstr){
@@ -1946,7 +2225,7 @@ namespace MXPSQL{
         }
 
         char& MSLedit::operator[](int index){
-            return getText(false, -1, -1)[index];
+            return str()[index];
         }
         #endif
     };
