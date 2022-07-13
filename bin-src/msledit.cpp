@@ -37,7 +37,7 @@
 #include "../Src/msledit.hpp"
 
 /**
- * @brief Main method of the MSLedit binary
+ * @brief Main method of the MSLedit binary (test environment)
  * 
  * @param argc arguments count
  * @param argv arguments v?
@@ -139,6 +139,9 @@ int main(int argc, char** argv){
         editor->insert(3, "\nnokia\nprincess peach amibo get smashed\n");
         editor->appendNewLine();
         editor->append(nullptr);
+        if(cleardoc){
+            editor->clear();
+        }
         if(!file.empty()){
             try{
                 editor->readFile(file);
@@ -165,9 +168,17 @@ int main(int argc, char** argv){
                 }
             }
         } */
-        if(cleardoc){
-            editor->clear();
-        }
+        /* editor->replBeginHandler = [](std::string begin, std::vector<std::string> args, size_t arglen, std::ostream& out, std::istream& in, std::ostream& err) -> int {
+            out << "no command line commands." << std::endl
+            << "Begin: " << begin << std::endl
+            << "Extra args" << std::endl;
+            for(size_t i = 0; i < arglen; i++){
+                out << "(" << std::to_string(i) << ")> " << args[i] << std::endl;
+            }
+            err << "you do not do that sem mistak ok ok ok" << std::endl;
+            in.get();
+            return 0;
+        }; */
         status = editor->repl();
     }
     catch(std::runtime_error& re){
