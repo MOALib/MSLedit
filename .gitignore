@@ -4,5 +4,7 @@
 *.exe
 **/*.exe
 
+bindings/*/
+
 html/
 latex/

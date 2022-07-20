@@ -1,6 +1,7 @@
-CXX=g++
+CXX:=g++
 MINGWCXX=i686-w64-mingw32-$(CXX)
-CXXFLAGS=-static -std=c++11 -pedantic -Wall -Wextra -Werror -fdiagnostics-color -Og -g
+CXXFLAGS=-pipe -static -std=c++11 -pedantic -Wall -Wextra -Werror -fdiagnostics-color -Og -g
+# -fsanitize=pointer-compare,pointer-subtract,address,leak,undefined
 
 BIN_SRC=msledit.cpp
 LIB_SRC=msleditlib.cpp

@@ -4,6 +4,8 @@ A string builder and editor library written in C++11.
 
 ## How to build
 
+Just do not try to do it on clang for now, it has problems (unless you remove the wall and pedantic flags).
+
 ```
 make
 ./bin-src/bin/msledit.exe

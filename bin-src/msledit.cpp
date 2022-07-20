@@ -114,10 +114,11 @@ int main(int argc, char** argv){
     }
 
     try{
+        using namespace MXPSQL::MSLedit;
         editor = new MXPSQL::MSLedit::MSLedit{"big", "pee", "pee", "big pee pee", "pee gets attacked", "pissed pee", "a pissed pee is an angry pee", "a big is a bee as a pig", "a pee is a pig as a bee", "walt has a big head"};
     }
     catch(std::bad_alloc& ba){
-        delete emergency_memory;
+        delete[] emergency_memory;
         std::cerr << "Failed to allocate memory for editor" << std::endl;
         status = EXIT_FAILURE;
         emergency_memory = nullptr;
@@ -149,6 +150,13 @@ int main(int argc, char** argv){
             catch(std::runtime_error& re2){
                 std::cerr << "what is this, you open something nonexistent or broken called '" << file << "'?" << std::endl;
                 status = EXIT_FAILURE;
+
+                delete[] emergency_memory;
+                delete editor;
+                editor = nullptr;
+                emergency_memory = nullptr;
+
+                return status;
             }
         }
         if(!prompt.empty()){
@@ -186,7 +194,7 @@ int main(int argc, char** argv){
         status = EXIT_FAILURE;
     }
 
-    delete emergency_memory;
+    delete[] emergency_memory;
     delete editor;
     editor = nullptr;
     emergency_memory = nullptr;

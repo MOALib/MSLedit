@@ -1,0 +1,21 @@
+/* 
+    SWIG interface file to generate MSLedit bindings 
+    Blatantly copied from https://github.com/MOALib/mshar/blob/master/c/binding/mshar.swigi and modified
+
+    Differences between MShar and MSLEdit
+
+    MShar is a library for shell archives, written in C90
+    MSLedit is a string editor and building library, written in C++11
+*/
+
+%module MSLedit
+
+%{
+#define __cplusplus 1
+#define MXPSQL_MSLedit_No_Implementation 1
+#include "../Src/msledit.hpp"
+%}
+
+%define MXPSQL_MSLedit_No_Implementation
+%enddef
+%include "../Src/msledit.hpp"
