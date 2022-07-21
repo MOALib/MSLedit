@@ -46,7 +46,7 @@
 int main(int argc, char** argv){
     int status = EXIT_SUCCESS;
     char* emergency_memory = new char[sizeof(char)*(16*1024*1024)];
-    MXPSQL::MSLedit::MSLedit* editor = nullptr;
+    MXPSQL::MSLedit::MSLedit editor{"big", "pee", "pee", "big pee pee", "a big is a bee as a pig", "a pee is a pig as a pee", "pee", "pee gets attacked", "pissed pee", "a pissed pee is an angry pee", "haha peach amibo gets smashed, arm broke of, depatitated, fallen of base", "nokia, a nokia 3310 i think", "western electric 500 telephone", "walt has a big head"};
     std::string file = "";
     std::string prompt = "";
     bool nbanner = false;
@@ -113,70 +113,59 @@ int main(int argc, char** argv){
         }
     }
 
-    try{
-        using namespace MXPSQL::MSLedit;
-        editor = new MXPSQL::MSLedit::MSLedit{"big", "pee", "pee", "big pee pee", "pee gets attacked", "pissed pee", "a pissed pee is an angry pee", "a big is a bee as a pig", "a pee is a pig as a bee", "walt has a big head"};
-    }
-    catch(std::bad_alloc& ba){
-        delete[] emergency_memory;
-        std::cerr << "Failed to allocate memory for editor" << std::endl;
-        status = EXIT_FAILURE;
-        emergency_memory = nullptr;
-        return status;
-    }
-
 
     try{
-        editor->appendAtLine(5, "eee\nd");
-        editor->appendAtLine(5, "eeee, reee\ndddd, o\nmarie claire");
-        // editor->insertAtLine(5, "eeee, reee\ndddd, o\nmarie claire");
-        editor->editLine(1, "aeaeadeeddee\neeccecle\nbig");
+        editor.appendAtLine(5, "eee\nd");
+        editor.appendAtLine(5, "eeee, reee\ndddd, o\nmarie claire");
+        // editor.insertAtLine(5, "eeee, reee\ndddd, o\nmarie claire");
+        editor.editLine(1, "aeaeadeeddee\neeccecle\nbig");
         /* {
-            for(std::string s : editor->split("walt")){
+            for(std::string s : editor.split("walt")){
                 std::cout << s << std::endl;
             }
         } */
-        editor->append("dietz nuts. eeeeeee");
-        editor->insert(3, "\nnokia\nprincess peach amibo get smashed\n");
-        editor->appendNewLine();
-        editor->append(nullptr);
+        editor.append("dietz nuts. eeeeeee");
+        // editor.insert(3, "\nnokia\nprincess peach amibo get smashed\n");
+        editor.appendNewLine();
+        editor.append(nullptr);
+        // editor.insert(3, NULL);
+        editor.appendNewLine();
+        editor.append(std::string::npos);
         if(cleardoc){
-            editor->clear();
+            editor.clear();
         }
         if(!file.empty()){
             try{
-                editor->readFile(file);
+                editor.readFile(file);
             }
             catch(std::runtime_error& re2){
                 std::cerr << "what is this, you open something nonexistent or broken called '" << file << "'?" << std::endl;
                 status = EXIT_FAILURE;
 
                 delete[] emergency_memory;
-                delete editor;
-                editor = nullptr;
                 emergency_memory = nullptr;
 
                 return status;
             }
         }
         if(!prompt.empty()){
-            editor->setKey("prompt", prompt);
+            editor.setKey("prompt", prompt);
         }
-        editor->setKey(editor->nobanner, ((nbanner) ? "true" : "false"));
+        editor.setKey(editor.nobanner, ((nbanner) ? "true" : "false"));
         /* {
-            editor->print(true, std::cout, -1, -1);
-            for(size_t i = 1; i < editor->length(); i++){
-                auto s = editor->getGridIndexFromStringIndex(i);
-                std::cout << s.first << "|" << s.second << "> '" << editor->charAtPosition(i) << "' == '" << editor->charAtGrid(s.first, s.second) << "'" << std::endl;
+            editor.print(true, std::cout, -1, -1);
+            for(size_t i = 1; i < editor.length(); i++){
+                auto s = editor.getGridIndexFromStringIndex(i);
+                std::cout << s.first << "|" << s.second << "> '" << editor.charAtPosition(i) << "' == '" << editor.charAtGrid(s.first, s.second) << "'" << std::endl;
 
-                if(editor->charAtPosition(i) != editor->charAtGrid(s.first, s.second)){
+                if(editor.charAtPosition(i) != editor.charAtGrid(s.first, s.second)){
                     std::cerr << "not the same" << std::endl;
                     status = EXIT_FAILURE;
                     return status;
                 }
             }
         } */
-        /* editor->replBeginHandler = [](std::string begin, std::vector<std::string> args, size_t arglen, std::ostream& out, std::istream& in, std::ostream& err) -> int {
+        /* editor.replBeginHandler = [](std::string begin, std::vector<std::string> args, size_t arglen, std::ostream& out, std::istream& in, std::ostream& err) -> int {
             out << "no command line commands." << std::endl
             << "Begin: " << begin << std::endl
             << "Extra args" << std::endl;
@@ -187,7 +176,7 @@ int main(int argc, char** argv){
             in.get();
             return 0;
         }; */
-        status = editor->repl();
+        status = editor.repl();
     }
     catch(std::runtime_error& re){
         std::cerr << re.what() << std::endl;
@@ -195,8 +184,6 @@ int main(int argc, char** argv){
     }
 
     delete[] emergency_memory;
-    delete editor;
-    editor = nullptr;
     emergency_memory = nullptr;
 
     return status;
