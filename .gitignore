@@ -8,3 +8,6 @@ bindings/*/
 
 html/
 latex/
+
+tools/*
+!tools/README.md

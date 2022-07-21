@@ -4,7 +4,21 @@ A string builder and editor library written in C++11.
 
 ## How to build
 
-Just do not try to do it on clang for now, it has problems (unless you remove the wall and pedantic flags).
+> OPTIONAL: get tools
+
+```
+# Bash
+cd tools
+sh gettools.sh
+```
+
+```
+# Batch
+cd tools
+gettools
+```
+
+> Build a binary
 
 ```
 make

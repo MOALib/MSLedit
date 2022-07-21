@@ -52,6 +52,12 @@ int main(int argc, char** argv){
     bool nbanner = false;
     bool cleardoc = false;
 
+    if(sizeof(editor) >= std::string::npos){
+        std::cerr << "bad type size" << std::endl;
+        status = EXIT_FAILURE;
+        return status;
+    }
+
     for(int i = 1; i < argc; i++){
         std::string arg = std::string(argv[i]);
         bool nextOptAvailable = ((i+1)<argc);
