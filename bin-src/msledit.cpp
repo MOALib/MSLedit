@@ -33,6 +33,7 @@
 #include <cstdlib>
 #include <new>
 #include <string>
+#include <memory>
 #include <vector>
 #include "../Src/msledit.hpp"
 
@@ -45,16 +46,18 @@
  */
 int main(int argc, char** argv){
     int status = EXIT_SUCCESS;
-    char* emergency_memory = new char[sizeof(char)*(16*1024*1024)];
+    std::unique_ptr<char[]> emergency_memory(new char[sizeof(char)*(16*1024*1024)]);
     MXPSQL::MSLedit::MSLedit editor{"big", "pee", "pee", "big pee pee", "a big is a bee as a pig", "a pee is a pig as a pee", "pee", "pee gets attacked", "pissed pee", "a pissed pee is an angry pee", "haha peach amibo gets smashed, arm broke of, depatitated, fallen of base", "nokia, a nokia 3310 i think", "western electric 500 telephone", "walt has a big head"};
     std::string file = "";
     std::string prompt = "";
     bool nbanner = false;
     bool cleardoc = false;
+    bool ncolor = false;
 
     if(sizeof(editor) >= std::string::npos){
-        std::cerr << "bad type size" << std::endl;
+        std::cerr << "bad type size, undefined behaviour has occured. Terminating. (This has gone unstable)" << std::endl;
         status = EXIT_FAILURE;
+        emergency_memory.reset();
         return status;
     }
 
@@ -70,8 +73,10 @@ int main(int argc, char** argv){
             << "-f, --file\tOpen a file" << std::endl
             << "-p, --prompt\tSet the prompt" << std::endl
             << "-nb, --no-banner\tDisable welcome banner" << std::endl
+            << "-nc, --no-color\tDisable color on prompt, also if term is not supported" << std::endl
             << "-c, --clear-doc\tClear test document" << std::endl
             << std::endl;
+            emergency_memory.reset();
             return status;
         }
         else if(arg == "-f" || arg == "--file"){
@@ -87,6 +92,7 @@ int main(int argc, char** argv){
             else{
                 std::cerr << "Missing arguments to " << arg << std::endl;
                 status = EXIT_FAILURE;
+                emergency_memory.reset();
                 return status;
             }
         }
@@ -109,12 +115,16 @@ int main(int argc, char** argv){
         else if(arg == "-nb" || arg == "--no-banner"){
             nbanner = true;
         }
+        else if(arg == "-nc" || arg == "--no-color"){
+            ncolor = true;
+        }
         else if(arg == "-c" || arg == "--clear-doc"){
             cleardoc = true;
         }
         else{
             std::cerr << "What is this stupid bingus of an argument called " << arg << "? " << std::endl;
             status = EXIT_FAILURE;
+            emergency_memory.reset();
             return status;
         }
     }
@@ -136,6 +146,7 @@ int main(int argc, char** argv){
         editor.append(nullptr);
         // editor.insert(3, NULL);
         editor.appendNewLine();
+        editor.append_printf("%s and %p at %i during %a and characters printed are (REDACTED) while %p eats the character %c and string %s\n", "tes yes", (void*)1, 21, 1.1, (void*)'\v', 'd', "str");
         editor.append(std::string::npos);
         if(cleardoc){
             editor.clear();
@@ -148,8 +159,7 @@ int main(int argc, char** argv){
                 std::cerr << "what is this, you open something nonexistent or broken called '" << file << "'?" << std::endl;
                 status = EXIT_FAILURE;
 
-                delete[] emergency_memory;
-                emergency_memory = nullptr;
+                emergency_memory.reset();
 
                 return status;
             }
@@ -158,6 +168,7 @@ int main(int argc, char** argv){
             editor.setKey("prompt", prompt);
         }
         editor.setKey(editor.nobanner, ((nbanner) ? "true" : "false"));
+        editor.setKey(editor.nocolor, ((ncolor) ? "true" : "false"));
         /* {
             editor.print(true, std::cout, -1, -1);
             for(size_t i = 1; i < editor.length(); i++){
@@ -180,7 +191,7 @@ int main(int argc, char** argv){
             }
             err << "you do not do that sem mistak ok ok ok" << std::endl;
             in.get();
-            return 0;
+            return EXIT_SUCCESS;
         }; */
         status = editor.repl();
     }
@@ -188,9 +199,6 @@ int main(int argc, char** argv){
         std::cerr << re.what() << std::endl;
         status = EXIT_FAILURE;
     }
-
-    delete[] emergency_memory;
-    emergency_memory = nullptr;
 
     return status;
 }

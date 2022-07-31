@@ -48,6 +48,9 @@
         "memory": "cpp",
         "deque": "cpp",
         "unordered_map": "cpp",
-        "functional": "cpp"
+        "functional": "cpp",
+        "cstring": "cpp",
+        "cstddef": "cpp",
+        "cstdarg": "cpp"
     }
 }

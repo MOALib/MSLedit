@@ -1,0 +1,57 @@
+.TH MSLedit 1 "13 July 2022" "Version -5.1 under development" "MSLedit binary documentation"
+
+
+."NAME for the description and extra info.
+.SH NAME
+
+MSLedit - MXPSQL's String-Line Editor.
+
+
+."DESCRIPTION is minimalistic
+.SH DESCRIPTION
+
+A portable CLI based line oriented text editor simillar to ed, but different.
+
+Consists of a library and a binary that is built on top of it.
+
+Written in C++11
+
+.B This manpage is to document the binary editor, not the library.
+
+
+."SYNOPSIS for command line arguments and stuff
+
+.B (msledit | msledit-n | msledit.exe | msledit-n.exe) [-h] [-f FILENAME] [-p PROMPT] [-nb] [-nc] [-c]
+
+You can choose either of the 4 commands as there is two type of binary shipped.
+
+- Native: msledit-n, msledit-n.exe
+
+- Cygwin: msledit, msledit.exe
+
+
+."CLI Arguments dOCUMENTATION.
+.SH OPTIONS
+-h, --help: Display the help message.
+
+-f, --file: Open a file.
+
+-p, --prompt: Set the prompt.
+
+-nb, --no-banner: No banners.
+
+--nc, --no-color: Disable coloring of prompt. Useful if the prompt is garbage. Is automatically done if terminal is not supported.
+
+-c, --clear-doc: Clear the document as there is a test document inside.
+
+
+."Attribution
+.SH AUTHOR
+
+.B MXPSQL
+
+
+."See something
+.SH SEE ALSO
+
+ed

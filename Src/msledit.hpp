@@ -67,6 +67,7 @@
 #include <algorithm>
 #include <functional>
 #include <iterator>
+#include <memory>
 
 #include <mutex>
 #include <thread>
@@ -76,18 +77,64 @@
 #include <cstdio>
 #include <cstdint>
 #include <cstring>
+#include <cstddef>
+#include <cstdarg>
 
 namespace MXPSQL{
     namespace MSLedit{
 
         /**
-         * @brief String builder and line editor
+         * @brief String builder and line editor. 
          * 
          * @note This class has mutexes for almost all functions for thread safety (and possibly reeterant).
-         * @warning Due to use of recursive_mutex for thread safety, this class may throw std::system_error, researching online shows that the mutex used here is hiding a bad design (but no, I will not replace that with wrapped functions becuase of big code). Some functions may use 0 based indexing while others use 1 based indexing, for best results experiment with this class and browse the source and make a note about it. May not be async-signal safe and cancel-safe.
+         * @warning Due to use of recursive_mutex for thread safety, this class may throw std::system_error, researching online shows that the mutex used here is hiding a bad design (but no, I will not replace that with wrapped functions becuase of big code). However, despite the thread safety checks, this class is not atomic.
          */
         class MSLedit{
+            public: // again
+            typedef std::vector<std::string> strbuf;
+
             protected: // again
+            /**
+             * @brief Stupid checksum comparer.
+             * 
+             * @details
+             * 
+             * SSS means Stupid Simple Summing.
+             * 
+             * It is called that because it uses stupid summing of char to size_t
+             * 
+             * @param c1 string 1
+             * @param c2 string 2
+             * @return true match
+             * @return false no
+             */
+            bool compareStringSSS(std::string c1, std::string c2){
+                bool simplesum_status = true;
+                {
+                    std::istringstream in_cmp_1(c1);
+                    std::istringstream in_cmp_2(c2);
+
+                    // simple char to long summing checksum
+                    typedef size_t lsize_t; // yeah
+                    lsize_t simplesum_1 = 0;
+                    lsize_t simplesum_2 = 0;
+
+                    char ch1 = 0;
+                    char ch2 = 0;
+
+                    while(in_cmp_1.get(ch1)){
+                        simplesum_1 += ch1;
+                    }
+                    
+                    while(in_cmp_2.get(ch2)){
+                        simplesum_2 += ch2;
+                    }
+
+                    simplesum_status = simplesum_1 == simplesum_2;
+                }
+                return simplesum_status;
+            }
+
             /**
              * @brief MD5 checksum comparer. We do not need to know the hash
              * 
@@ -596,29 +643,39 @@ namespace MXPSQL{
                     crc1 = crc_update(crc1, (unsigned char*) c1.c_str(), std::strlen(c1.c_str()));
                     crc2 = crc_update(crc1, (unsigned char*) c2.c_str(), std::strlen(c2.c_str()));
 
-                    unsigned long int crc1_f = crc_finalize(crc1);
-                    unsigned long int crc2_f = crc_finalize(crc2);
+                    size_t crc1_f = crc_finalize(crc1);
+                    size_t crc2_f = crc_finalize(crc2);
 
                     return crc1_f == crc2_f;
                 }
             }
 
             private:
-            typedef int tapdef_t; // why not
+            /**
+             * @brief Stupid typedef
+             * 
+             */
+            typedef unsigned long long int tapdef_t; // why not
+
+            /**
+             * @brief Why not a va_list
+             * 
+             */
+            std::va_list stupid_vaargs;
 
             protected: // first
             /**
              * @brief The internal buffer
              * 
              */
-            std::vector<std::string> buffer;
+            MSLedit::strbuf buffer;
             /**
              * @brief The last file that is opened/writtened
              * 
              */
             std::string file = "";
             /**
-             * @brief Syncrhonization mutex, you can say this is the GIL (if this is a language interpreter)
+             * @brief Syncrhonization mutex, you can say this is the GIL (if this is a language interpreter, but yes i know if yu read after this) if this was a language interpreter.
              * 
              * @note This mutex is mentioned in the note of this class, this synchronizes the class
              */
@@ -629,7 +686,7 @@ namespace MXPSQL{
              */
             std::map<std::string, std::string> strEditorConfig;
 
-            public:
+            public: // first
 
             /**
              * @brief The key for the prompt config
@@ -646,6 +703,11 @@ namespace MXPSQL{
              * 
              */
             const std::string nobanner = "nobanner";
+            /**
+             * @brief Should help if displaying garbage when using the repl by disabling color. Normally has color when supported.
+             * 
+             */
+            const std::string nocolor = "nocolor";
 
             /**
              * @brief Handles other operations in the MSLedit REPL
@@ -657,7 +719,7 @@ namespace MXPSQL{
              * Arguments for handlers: begin, args, arglen, out, input, error
              * 
              */
-            std::function<int(std::string, std::vector<std::string>, size_t, std::ostream&, std::istream&, std::ostream&)> replBeginHandler;
+            std::function<int(std::string, MSLedit::strbuf, size_t, std::ostream&, std::istream&, std::ostream&)> replBeginHandler;
 
             /**
              * @brief Construct a new MSLedit object with initializations
@@ -699,7 +761,7 @@ namespace MXPSQL{
              * 
              * @param buffer the vector of strings (buffer)
              */
-            MSLedit(std::vector<std::string> buffer);
+            MSLedit(MSLedit::strbuf buffer);
             /**
              * @brief Construct a new MSLedit object from an initializer list of strings
              * 
@@ -782,7 +844,7 @@ namespace MXPSQL{
              * 
              * @note the arguents begins with 1 instead of 0
              * 
-             * @warning default implementation (the one in the header file) is SLOW AS A SLOTH (SLOTHY) and broken.
+             * @warning default implementation (the one in the header file) is SLOW AS A SLOTH (SLOTHY) and broken. Don't even use this.
              */
             std::pair<size_t, size_t> getGridIndexFromStringIndex(size_t strindex);
             /**
@@ -804,6 +866,18 @@ namespace MXPSQL{
              * @note begin with 1 instead of 0
              */
             char charAtGrid(size_t line, size_t index);
+            /**
+             * @brief Obtain iterator from buffer
+             * 
+             * @return strbuf::iterator iterator
+             */
+            strbuf::iterator getIterator();
+            /**
+             * @brief Get the end marker of the iterator
+             * 
+             * @return strbuf::iterator ending point
+             */
+            strbuf::iterator getIteratorEnd();
 
             /**
              * @brief Open a file for content
@@ -899,9 +973,11 @@ namespace MXPSQL{
              * @param end which line should be the ending point? -1 or below for the very end (all)
              * @return char* C-Style string
              * 
-             * @see getConstCString
+             * @see getText
+             * @see getUniqueCString
+             * @see getSharedCString
              * 
-             * @note See the note in getConstCString, this string should be deallocated when done
+             * @note You shoudld deallocate this string when done (unique_ptr is helpful, in fact there is that function to help you called getUniqueCString and getSharedCString). This allocates a new string (to get around clang lmao)
              */
             char* getCString(bool formatted, long int begin, long int end);
             /**
@@ -912,23 +988,44 @@ namespace MXPSQL{
              * @param end which line should be the ending point? -1 or below for the very end (all)
              * @return const char* constant C-Style string
              * 
-             * @see getText
-             * 
-             * @note You shoudld deallocate this string when done (unique_ptr is helpful). This allocates a new string (to get around clang lmao)
+             * @see getCString
+             * @note See the note in getCString, this string should be deallocated when done. You should have done it.
              */
             const char* getConstCString(bool formatted, long int begin, long int end);
+            /**
+             * @brief Get the C String in a smart pointer (unique_ptr). Uses getCString internally.
+             * 
+             * @param formatted should be formatted with a line numbering?
+             * @param begin which line should be the starting point? -1 or below for the very beginning
+             * @param end which line should be the ending point? -1 or below for the very end (all)
+             * @return std::unique_ptr<char[]> smart string (unique)
+             * 
+             * @see getCString
+             */
+            std::unique_ptr<char[]> getUniqueCString(bool formatted, long int begin, long int end);
+            /**
+             * @brief Get the C String in a smart pointer (shared_ptr). Uses getCString internally.
+             * 
+             * @param formatted should be formatted with a line numbering?
+             * @param begin which line should be the starting point? -1 or below for the very beginning
+             * @param end which line should be the ending point? -1 or below for the very end (all)
+             * @return std::shared_ptr<char[]> smart string (shared)
+             * 
+             @see getCString
+             */
+            std::shared_ptr<char[]> getSharedCString(bool formatted, long int begin, long int end);
             /**
              * @brief Set the internal buffer from a vector of string
              * 
              * @param buffer the string buffer to set the internal buffer to
              */
-            void setBuffer(std::vector<std::string> buffer);
+            void setBuffer(MSLedit::strbuf buffer);
             /**
              * @brief Get the internal buffer as a vector of string
              * 
-             * @return std::vector<std::string> the internal buffer as a vector of string
+             * @return MSLedit::strbuf the internal buffer as a vector of string
              */
-            std::vector<std::string> getBuffer();
+            MSLedit::strbuf getBuffer();
             /**
              * @brief Set the internal buffer from a vector of characters
              * 
@@ -974,6 +1071,26 @@ namespace MXPSQL{
              * @see getText
              *\/
             void print(bool formatted, std::stringstream& stream, long int begin, long int end);*/
+            /**
+             * @brief Dump the internal state of this instance to std::cout, internally uses the ostream version
+             * 
+             * @param formatted format the output as json if true
+             */
+            void dump(bool formatted);
+            /**
+             * @brief Dump the internal state of this instance to the stream, internally uses dumpstr
+             * 
+             * @param formatted format the output as json if true
+             * @param stream the stream
+             */
+            void dump(bool formatted, std::ostream& stream);
+            /**
+             * @brief Dump the internal state of this instance as a return of type string
+             * 
+             * @param formatted format the output as json if true
+             * @return std::string the dumped state
+             */
+            std::string dumpstr(bool formatted);
 
             /**
              * @brief Append a line at the end (newlines are handeled)
@@ -1120,9 +1237,11 @@ namespace MXPSQL{
              */
             void append(MSLedit miss);
             /**
-             * @brief Append a pointer
+             * @brief Append a pointer. Uses append_printf
              *
              * @param ptr pointer
+             * 
+             * @see append_printf
              */
             void append(void* ptr);
             /**
@@ -1142,6 +1261,26 @@ namespace MXPSQL{
              * 
              */
             void appendNewLine();
+            /**
+             * @brief C Style printf to append. Uses append_vprintf to avoid duplication
+             * 
+             * @param format printf format
+             * @param ... extra arguments
+             * @return int status of the printf
+             * 
+             * @see append_vprintf
+             */
+            int append_printf(std::string format, ...);
+            /**
+             * @brief C Style printf to append, but accepts va_list instead
+             * 
+             * @param format 
+             * @param vaargs 
+             * @return int 
+             * 
+             * @note You need to va_start and va_end the va_list manually
+             */
+            int append_vprintf(std::string format, va_list vaargs);
 
             /**
              * @brief Insert a boolean at a specified position
@@ -1226,6 +1365,26 @@ namespace MXPSQL{
              * @param position the position
              */
             void insertnewline(size_t position);
+            /**
+             * @brief C-Style printf to insert at. Uses insert_vprintf to avoid duplication
+             * 
+             * @param position the position to append the string at
+             * @param format printf format
+             * @param ... your arguments if you know printf
+             * @return int the status return from printf
+             */
+            int insert_printf(size_t position, std::string format, ...);
+            /**
+             * @brief C-Style printf to insert at, but accepts va_list.
+             * 
+             * @param position the position to append the string at
+             * @param format printf format
+             * @param vaargs va_list
+             * @return int status from printf
+             * 
+             * @see You need to va_start and va_end the list manually
+             */
+            int insert_vprintf(size_t position, std::string format, va_list vaargs);
 
             /**
              * @brief Delete a substring between 2 certain index
@@ -1261,16 +1420,16 @@ namespace MXPSQL{
              * @brief Tokenize a string by a character
              * 
              * @param delimiter the delimiter
-             * @return std::vector<std::string> the tokenized string
+             * @return MSLedit::strbuf the tokenized string
              */
-            std::vector<std::string> split(char delimiter);
+            MSLedit::strbuf split(char delimiter);
             /**
              * @brief Tokenize a string by a string
              * 
              * @param delimiter the delimiter
-             * @return std::vector<std::string> the tokenized string
+             * @return MSLedit::strbuf the tokenized string
              */
-            std::vector<std::string> split(std::string delimiter);
+            MSLedit::strbuf split(std::string delimiter);
 
             /**
              * @brief Get a substring to the end
@@ -1421,6 +1580,67 @@ namespace MXPSQL{
             int compare(const char* ccstr);
 
             /**
+             * @brief Compare with stupid summing each character
+             * 
+             * @param mystr other string to compare with
+             * @return true the checksum of this class' text matches with the checksum of mystr. This means that the text matches
+             * @return false not match
+             * 
+             * @see compareStringSSS
+             */
+            bool stupidSimpleSummingCompare(std::string mystr);
+            /**
+             * @brief Compare with stupid summing of each charactee
+             * 
+             * @param miss other instance
+             * @return true both checksum match
+             * @return false no
+             * 
+             * @see compareStringSSS
+             */
+            bool stupidSimpleSummingCompare(MSLedit& miss);
+            /**
+             * @brief Compare with MD5
+             * 
+             * @param mystr the sting to compare with
+             * @return true the text of this class matches with mystr
+             * @return false the text of this class does not match (at all)
+             * 
+             * @see compareStringMD5
+             */
+            bool md5Compare(std::string mystr);
+            /**
+             * @brief Compare with MD5 to another instance
+             * 
+             * @param miss other instance
+             * @return true the text of this instance matches the other instance
+             * @return false the text of this instance does not match (at all)
+             * 
+             * @see compareStringMD5
+             */
+            bool md5Compare(MSLedit& miss);
+            /**
+             * @brief Compare with CRC32
+             * 
+             * @param mystr the sting to compare with
+             * @return true the text of this class matches with mystr
+             * @return false the text of this class does not match (at all)
+             * 
+             * @see compareStringCRC32
+             */
+            bool crc32Compare(std::string mystr);
+            /**
+             * @brief Compare with CRC32 to another instance
+             * 
+             * @param miss other instance
+             * @return true the text of this instance matches the other instance
+             * @return false the text of this instance does not match (at all)
+             * 
+             * @see compareStringCRC32
+             */
+            bool crc32Compare(MSLedit& miss);
+
+            /**
              * @brief Am I empty?
              * 
              * @return true yes you are
@@ -1507,7 +1727,7 @@ namespace MXPSQL{
             friend bool operator!=(MSLedit& miss, const char* ccstr) {return !(miss == ccstr);}
 
             /**
-             * @brief Output the formated content of an instance to the stream
+             * @brief Output the formatted content of an instance to the stream
              * 
              * @param os output stream
              * @param miss the said instance
@@ -1586,6 +1806,7 @@ namespace MXPSQL{
             setKey(nprompt, "MSLedit> ");
             setKey(nosystem, "false");
             setKey(nobanner, "false");
+            setKey(nocolor, "false");
         }
 
         MSLedit::MSLedit(MSLedit& ledit) : MSLedit() {
@@ -1600,11 +1821,11 @@ namespace MXPSQL{
         MSLedit::MSLedit(char* cstr) : MSLedit(std::string(cstr)) {}
         MSLedit::MSLedit(const char* ccstr) : MSLedit(std::string(ccstr)) {}
 
-        MSLedit::MSLedit(std::vector<std::string> buffer) : MSLedit() {
+        MSLedit::MSLedit(MSLedit::strbuf buffer) : MSLedit() {
             setBuffer(buffer);
         }
 
-        MSLedit::MSLedit(std::initializer_list<std::string> ilbuf) : MSLedit(std::vector<std::string>(ilbuf)) {}
+        MSLedit::MSLedit(std::initializer_list<std::string> ilbuf) : MSLedit(MSLedit::strbuf(ilbuf)) {}
 
         MSLedit::MSLedit(std::vector<char> cbuffer) : MSLedit(){
             std::string s(cbuffer.begin(), cbuffer.end());
@@ -1714,6 +1935,14 @@ namespace MXPSQL{
             return c;
         }
 
+        MSLedit::strbuf::iterator MSLedit::getIterator(){
+            return buffer.begin();
+        }
+
+        MSLedit::strbuf::iterator MSLedit::getIteratorEnd(){
+            return buffer.end();
+        }
+
 
         void MSLedit::readFile(std::string path){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
@@ -1761,7 +1990,8 @@ namespace MXPSQL{
                 {
                     // make temp file
                     char tmpfile_tmp[L_tmpnam];
-                    if(!std::tmpnam(tmpfile_tmp)){
+                    char* ret = std::tmpnam(tmpfile_tmp); // stfu compilers that warn about this (bad tmpnam), I am not using C-Style FILE* IO (Bad), POSIX mkstemp (Not portable), C++17 Filesystem API (NO C++17 only, C++11 must support).
+                    if(((!ret) || (ret == NULL))){
                         throw std::runtime_error("Unable to generate random file name for locking");
                     }
                     tmpfile = std::string(tmpfile_tmp);
@@ -1860,26 +2090,16 @@ namespace MXPSQL{
                     {
                         // compare with char one by one and 3 checksum (md5, crc <16? 32? yep 32>, simple char to long summing)
 
-                        bool simplesum_status = true;
-                        {
-                            // simple char to long summing checksum
-                            typedef unsigned long long int lsize_t; // yeah long
-                            lsize_t simplesum_1 = 0;
-                            lsize_t simplesum_2 = 0;
-
-                            char c = 0;
-                            char c2 = 0;
-
-                            while(in_cmp_1.get(c)){
-                                simplesum_1 += c;
-                            }
-                            
-                            while(in_cmp_2.get(c2)){
-                                simplesum_2 += c2;
-                            }
-
-                            simplesum_status = simplesum_1 == simplesum_2;
-                        }
+                        bool simplesum_status = compareStringSSS(
+                            std::string(
+                                std::istreambuf_iterator<char>(in_cmp_1),
+                                std::istreambuf_iterator<char>()
+                            ),
+                            std::string(
+                                std::istreambuf_iterator<char>(in_cmp_2),
+                                std::istreambuf_iterator<char>()
+                            )
+                        );
 
                         if(!in_cmp_1.seekg(0, std::ifstream::beg) || !in_cmp_2.seekg(0, std::ifstream::beg)){
                             if(in_cmp_1.is_open()){
@@ -1984,7 +2204,7 @@ namespace MXPSQL{
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::istringstream iss(text);
             std::string token;
-            std::vector<std::string> vectr;
+            MSLedit::strbuf vectr;
 
             while(std::getline(iss, token, '\n')){
                 vectr.push_back(token);
@@ -1997,7 +2217,7 @@ namespace MXPSQL{
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::stringstream ss;
             std::string str = "";
-            std::vector<std::string> nw(buffer);
+            MSLedit::strbuf nw(buffer);
             size_t lsize = lineNums();
 
             if(begin > end){
@@ -2024,7 +2244,7 @@ namespace MXPSQL{
                     std::string ioneAsStr = std::to_string(ione);
                     std::string lsizeAsStr = std::to_string(lsize);
                     std::string space = std::string(lsizeAsStr.length() - ioneAsStr.length(), ' ');
-                    ss << space << ione << "|" << nw[i] << "\n";
+                    ss << space << ioneAsStr << "|" << nw[i] << "\n";
                 }
                 else {
                     ss << nw[i] << "\n";
@@ -2065,19 +2285,27 @@ namespace MXPSQL{
         }
 
         char* MSLedit::getCString(bool formatted, long int begin, long int end){
-            return (char*) getConstCString(formatted, begin, end);
-        }
-
-        const char* MSLedit::getConstCString(bool formatted, long int begin, long int end){
             std::string cp = getText(formatted, begin, end);
             char* cstr = new char[cp.length() + 1];
             cp.copy(cstr, cp.length() + 1);
-            return (const char*) cstr;
+            return cstr;
         }
 
-        void MSLedit::setBuffer(std::vector<std::string> buffer){
+        const char* MSLedit::getConstCString(bool formatted, long int begin, long int end){
+            return (const char*) getCString(formatted, begin, end);
+        }
+
+        std::unique_ptr<char[]> MSLedit::getUniqueCString(bool formatted, long int begin, long int end){
+            return std::unique_ptr<char[]>(getCString(formatted, begin, end));
+        }
+
+        std::shared_ptr<char[]> MSLedit::getSharedCString(bool formatted, long int begin, long int end){
+            return std::shared_ptr<char[]>(getCString(formatted, begin, end));
+        }
+
+        void MSLedit::setBuffer(MSLedit::strbuf buffer){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
-            std::vector<std::string> vectr(buffer);
+            MSLedit::strbuf vectr(buffer);
             std::string tmpbuf;
             this->buffer.clear();
             {
@@ -2096,7 +2324,7 @@ namespace MXPSQL{
             }
         }
 
-        std::vector<std::string> MSLedit::getBuffer(){
+        MSLedit::strbuf MSLedit::getBuffer(){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return buffer;
         }
@@ -2125,6 +2353,100 @@ namespace MXPSQL{
         } */
 
 
+        void MSLedit::dump(bool formatted){
+            dump(formatted, std::cout);
+        }
+
+        void MSLedit::dump(bool formatted, std::ostream& stream){
+            stream << dumpstr(formatted);
+        }
+
+        std::string MSLedit::dumpstr(bool formatted){
+            std::unique_lock<std::recursive_mutex> lock(lock_mutex);
+            std::string state = "";
+            std::stringstream ss;
+            if(formatted){ // bad json
+                ss << "{" << std::endl;
+                {
+                    // Generate config to json
+                    ss << "\t\"ReplAndStrEditorConfig\": {" << std::endl;
+
+                    {
+                        std::map<std::string, std::string> maps = getConfig();
+                        for(auto it = maps.begin(); it != maps.end(); it++){
+                            ss << "\t\t\"" << it->first << "\": \"" << it->second << "\"";
+                            if(std::next(it) != maps.end()){
+                                ss << ", ";
+                            }
+                            ss << std::endl;
+                        }
+                    }
+
+                    ss << "\t}, " << std::endl;
+                }
+
+                {
+                    // dump last opened file
+                    ss << "\t\"LastFileOpened\": \"" << file << "\", " << std::endl;
+                }
+
+                {
+                    // Generate list of things in an array ( raw document )
+                    ss << "\t\"StrArray\": [" << std::endl;
+
+                    {
+                        MSLedit::strbuf Stringies = getBuffer();
+                        for(size_t i = 0; i < Stringies.size(); i++){
+                            std::string Stringy = Stringies.at(i);
+                            ss << "\t\t\"" << Stringy << "\"";
+                            if((i+1) < Stringies.size()){
+                                ss << ", ";
+                            }
+                            ss << std::endl;
+                        }
+                    }
+
+                    ss << "\t]" << std::endl;
+                }
+                ss << "}" << std::endl;
+            }
+            else{
+                {
+                    // Generate config
+                    ss << "config: " << std::endl;
+                    {
+                        std::map<std::string, std::string> maps = getConfig();
+                        for(auto it = maps.begin(); it != maps.end(); it++){
+                            ss << "\t\"" << it->first << "\": \"" << it->second << "\"" << std::endl;
+                        }
+                    }
+                }
+
+                {
+                    // dump last opened file
+                    ss << "LastFileOpened: \"" << file << "\"" << std::endl;
+                }
+
+                {
+                    // Generate list of things in an array ( raw document )
+                    ss << "StrArray: " << std::endl;
+
+                    {
+                        MSLedit::strbuf Stringies = getBuffer();
+                        for(size_t i = 0; i < Stringies.size(); i++){
+                            std::string Stringy = Stringies.at(i);
+                            ss << "\t\"" << Stringy << "\"" << std::endl;
+                        }
+                    }
+
+                }
+            }
+            state = ss.str();
+            return state;
+        }
+
+
+
         void MSLedit::appendAtEnd(std::string line){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::istringstream iss(line);
@@ -2151,7 +2473,7 @@ namespace MXPSQL{
         void MSLedit::insertAtLine(int linenum, std::string line){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             if(linenum > (int) lineNums() || linenum < 1) throw std::out_of_range("Attempting to edit beyond array bound");
-            std::vector<std::string> tmpbuffer(buffer);
+            MSLedit::strbuf tmpbuffer(buffer);
             std::istringstream iss(line);
             std::string token;
             for(auto it = tmpbuffer.begin() + linenum - 1; std::getline(iss, token, '\n'); it++){
@@ -2174,7 +2496,7 @@ namespace MXPSQL{
         std::vector<std::pair<size_t, size_t>> MSLedit::search(std::string text2search, size_t begin_line, size_t count){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::vector<std::pair<size_t, size_t>> poses;
-            std::vector<std::string> vectr(buffer);
+            MSLedit::strbuf vectr(buffer);
 
             for(size_t i = begin_line, c = 0; i < vectr.size() && (count == std::string::npos || c < count); i++){
                 std::string line = vectr.at(i);
@@ -2308,17 +2630,7 @@ namespace MXPSQL{
 
         void MSLedit::append(void* ptr){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
-            std::string ssstr;
-            int size = std::snprintf(nullptr, 0, "%p", ptr);
-            std::vector<char> autocstr(size + 1);
-            if(std::snprintf(&autocstr[0], autocstr.size(), "%p", ptr) < 0){
-                throw std::length_error("Unable to write pointer to temporary buffer");
-                return;
-            }
-            for(char c : autocstr){
-                ssstr += c;
-            }
-            append(ssstr);
+            append_printf("%p", ptr);
         }
 
         void MSLedit::append(std::nullptr_t nptr){
@@ -2334,6 +2646,21 @@ namespace MXPSQL{
         void MSLedit::appendNewLine(){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             append('\n');
+        }
+
+        int MSLedit::append_printf(std::string format, ...){
+            std::unique_lock<std::recursive_mutex> lock(lock_mutex);
+            va_list vaa;
+            int status = 0;
+            va_start(vaa, format);
+            status = append_vprintf(format, vaa);
+            va_end(vaa);
+            return status;
+        }
+
+        int MSLedit::append_vprintf(std::string format, va_list vaargs){
+            std::unique_lock<std::recursive_mutex> lock(lock_mutex);
+            return insert_vprintf(size(), format, vaargs);
         }
 
 
@@ -2382,18 +2709,7 @@ namespace MXPSQL{
 
         void MSLedit::insert(size_t position, void* ptr){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
-            std::string ssstr;
-            int size = std::snprintf(nullptr, 0, "%p", ptr);
-            std::vector<char> autocstr(size + 1);
-            if(std::snprintf(&autocstr[0], autocstr.size(), "%p", ptr) < 0){
-                throw std::length_error("Unable to write pointer to temporary buffer");
-                return;
-            }
-            for(char c : autocstr){
-                ssstr += c;
-            }
-            append(ssstr);
-            insert(position, ssstr);
+            insert_printf(position, "%p", ptr);
         }
 
         void MSLedit::insert(size_t position, std::nullptr_t nptr){
@@ -2409,6 +2725,31 @@ namespace MXPSQL{
         void MSLedit::insertnewline(size_t position){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             insert('\n', position);
+        }
+
+        int MSLedit::insert_printf(size_t position, std::string format, ...){
+            va_list vaa;
+            int status = 0;
+            va_start(vaa, format);
+            status = insert_vprintf(position, format, vaa);
+            va_end(vaa);
+            return status;
+        }
+
+        int MSLedit::insert_vprintf(size_t position, std::string format, va_list vaargs){
+            std::string ssstr;
+            int status = 0;
+            int size = std::vsnprintf(nullptr, 0, format.c_str(), vaargs);
+            std::vector<char> autocstr(size + 1);
+            if((status = std::vsnprintf(&autocstr[0], autocstr.size(), format.c_str(), vaargs)) < 0){
+                throw std::length_error("Unable to write pointer to temporary buffer");
+                return status;
+            }
+            for(char c : autocstr){
+                ssstr += c;
+            }
+            insert(position, ssstr);
+            return status;
         }
 
 
@@ -2439,8 +2780,8 @@ namespace MXPSQL{
         }
 
 
-        std::vector<std::string> MSLedit::split(char delimiter){
-            std::vector<std::string> misses;
+        MSLedit::strbuf MSLedit::split(char delimiter){
+            MSLedit::strbuf misses;
             std::string t = str();
             std::string token;
             std::istringstream iss(t);
@@ -2448,8 +2789,8 @@ namespace MXPSQL{
             return misses;
         }
 
-        std::vector<std::string> MSLedit::split(std::string delimiter){
-            std::vector<std::string> misses;
+        MSLedit::strbuf MSLedit::split(std::string delimiter){
+            MSLedit::strbuf misses;
             std::string t = str();
             size_t start = 0;
             size_t end = t.find(delimiter);
@@ -2567,18 +2908,18 @@ namespace MXPSQL{
             int status = EXIT_SUCCESS;
             bool run = true;
             std::string l = "";
-            std::vector<std::string> ls;
+            MSLedit::strbuf ls;
 
             {
-            bool allowBanner = true;
-            {
-                std::unique_lock<std::recursive_mutex> lock(lock_mutex);
-                if(keyExists(nobanner)) allowBanner = (getKey(nobanner) != "true");
-            }
+                bool allowBanner = true;
+                {
+                    std::unique_lock<std::recursive_mutex> lock(lock_mutex);
+                    if(keyExists(nobanner)) allowBanner = (getKey(nobanner) != "true");
+                }
 
                 if(allowBanner){
                     size_t s = 0;
-                    std::vector<std::string> banners{"MSLedit", "Written by MXPSQL", "Entering REPL", "Type 'h' for help"};
+                    MSLedit::strbuf banners{"MSLedit", "Written by MXPSQL", "Entering REPL", "Type 'h' for help"};
                     std::string banner = "";
                     for(std::string bnr : banners){
                         size_t s2 = bnr.length() + 5;
@@ -2595,7 +2936,44 @@ namespace MXPSQL{
                 try{
                     std::string begin = "";
                     ls.clear();
-                    out << prompt;
+                    
+                    {
+                        bool is_supported = false;
+                        {
+                            std::string term = "";
+                            {
+                                char* cterm = std::getenv("TERM");
+                                if(cterm != NULL && cterm != nullptr){
+                                    term = cterm;
+                                }
+                                else{
+                                    term = "";
+                                }
+                            }
+
+                            {
+                                bool allowColor = true;
+                                {
+                                    std::unique_lock<std::recursive_mutex> lock(lock_mutex);
+                                    if(keyExists(nocolor)) allowColor = (getKey(nocolor) != "true");
+                                }
+                                is_supported = allowColor && ((term == "gnome-terminal") || (term == "xterm"));
+                            }
+                        }
+
+                        if(is_supported){
+                            // print green
+                            out << "\x1B[32m";
+                        }
+
+                        out << prompt;
+
+                        if(is_supported){
+                            // normalize
+                            out << "\x1B[0m";
+                        }
+                    }
+
                     if(!std::getline(in, l, '\n')){
                         err << "Error getting input from user." << std::endl;
                         status = EXIT_FAILURE;
@@ -2603,7 +2981,19 @@ namespace MXPSQL{
                     }
 
 
-                    if(l.find_first_not_of(" ") == std::string::npos || l.length() < 1) continue;
+                    {
+                        bool no_use_comma_it_parenthesis_open_apostrophe_s_parenthesis_close_null_comma_empty_oxford_comma_and_slash_or_whitespace = false; // readable name: no use, it('s) null, empty, and/or whitespace
+
+                        bool empty = l.length() < 1;
+                        bool only_whitespace = l.find_first_not_of(" ") == std::string::npos;
+                        bool only_tab = l.find_first_not_of('\t') == std::string::npos;
+
+                        no_use_comma_it_parenthesis_open_apostrophe_s_parenthesis_close_null_comma_empty_oxford_comma_and_slash_or_whitespace = empty || only_whitespace || only_tab;
+
+                        if(no_use_comma_it_parenthesis_open_apostrophe_s_parenthesis_close_null_comma_empty_oxford_comma_and_slash_or_whitespace){
+                            continue;
+                        }
+                    }
                     out << std::endl; // for the betterness with pipes when piping
 
                     {
@@ -2614,7 +3004,7 @@ namespace MXPSQL{
 
                     begin = ls.at(0);
                     size_t arglen = ls.size() - 1;
-                    std::vector<std::string> args(ls);
+                    MSLedit::strbuf args(ls);
                     args.erase(args.begin());
                     
                     // # and <# are comments
@@ -2748,7 +3138,7 @@ namespace MXPSQL{
                         }
                         else{
                             try{
-                                std::vector<std::string> slicedargs(args);
+                                MSLedit::strbuf slicedargs(args);
                                 int line = stoi(slicedargs[0]);
                                 slicedargs.erase(slicedargs.begin());
                                 std::stringstream ss;
@@ -2783,7 +3173,7 @@ namespace MXPSQL{
                         }
                         else{
                             try{
-                                std::vector<std::string> slicedargs(args);
+                                MSLedit::strbuf slicedargs(args);
                                 int line = stoi(slicedargs[0]);
                                 slicedargs.erase(slicedargs.begin());
                                 std::stringstream ss;
@@ -2818,7 +3208,7 @@ namespace MXPSQL{
                         }
                         else{
                             try{
-                                std::vector<std::string> slicedargs(args);
+                                MSLedit::strbuf slicedargs(args);
                                 int line = stoi(slicedargs[0]);
                                 slicedargs.erase(slicedargs.begin());
 
@@ -2907,7 +3297,7 @@ namespace MXPSQL{
                         }
                         else{
                             try{
-                                std::vector<std::string> slicedargs(args);
+                                MSLedit::strbuf slicedargs(args);
                                 int line = stoi(slicedargs[0]);
                                 slicedargs.erase(slicedargs.begin());
                                 std::stringstream ss;
@@ -3120,6 +3510,7 @@ namespace MXPSQL{
                             }
                             out << std::endl; // flush 4 system
                             std::system(ss.str().c_str());
+                            out << std::endl;
                         }
                     }
                     else if(begin == "ed"){ // ed
@@ -3154,16 +3545,26 @@ namespace MXPSQL{
                             scmd += ss.str();
                             out << "ed time" << std::endl;
                             std::system(scmd.c_str());
+                            out << std::endl;
                         }
                         #else
                         out << "?" << std::endl;
+                        /* while(in.get() != 'q' && in.good()){
+                            out << "?" << std::endl;
+                        } */
                         #endif
                     }
                     else{
                         int hstatus = EXIT_FAILURE;
 
                         if(((replBeginHandler) && (replBeginHandler != nullptr))){
-                            hstatus = replBeginHandler(begin, args, arglen, out, in, err);
+                            try{
+                                hstatus = replBeginHandler(begin, args, arglen, out, in, err);
+                            }
+                            catch(std::bad_function_call& bfc){
+                                err << "Bad REPL handler!" << std::endl << "Message btw: '" << bfc.what() << "'" << std::endl;
+                                hstatus = EXIT_FAILURE;
+                            }
                         }
 
                         if(hstatus != EXIT_SUCCESS) {
@@ -3198,6 +3599,31 @@ namespace MXPSQL{
 
         int MSLedit::compare(const char* ccstr){
             return compare(std::string(ccstr));
+        }
+
+
+        bool MSLedit::stupidSimpleSummingCompare(std::string mystr){
+            return compareStringSSS(getText(false, -1, -1), mystr);
+        }
+
+        bool MSLedit::stupidSimpleSummingCompare(MSLedit& miss){
+            return stupidSimpleSummingCompare(miss.getText(false, -1, -1));
+        }
+
+        bool MSLedit::md5Compare(std::string mystr){
+            return compareStringMD5(getText(false, -1, -1), mystr);
+        }
+
+        bool MSLedit::md5Compare(MSLedit& miss){
+            return md5Compare(miss.getText(false, -1, -1));
+        }
+
+        bool MSLedit::crc32Compare(std::string mystr){
+            return compareStringCRC32(getText(false, -1, -1), mystr);
+        }
+
+        bool MSLedit::crc32Compare(MSLedit& miss){
+            return crc32Compare(miss.getText(false, -1, -1));
         }
 
 
