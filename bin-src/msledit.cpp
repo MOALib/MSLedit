@@ -56,9 +56,8 @@ int main(int argc, char** argv){
 
     if(sizeof(editor) >= std::string::npos){
         std::cerr << "bad type size, undefined behaviour has occured. Terminating. (This has gone unstable)" << std::endl;
-        status = EXIT_FAILURE;
         emergency_memory.reset();
-        return status;
+        std::abort(); // abortion
     }
 
     for(int i = 1; i < argc; i++){
