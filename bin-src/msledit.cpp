@@ -47,7 +47,7 @@
 int main(int argc, char** argv){
     int status = EXIT_SUCCESS;
     std::unique_ptr<char[]> emergency_memory(new char[sizeof(char)*(16*1024*1024)]);
-    MXPSQL::MSLedit::MSLedit editor{"big", "pee", "pee", "big pee pee", "a big is a bee as a pig", "a pee is a pig as a pee", "pee", "pee gets attacked", "pissed pee", "a pissed pee is an angry pee", "haha peach amibo gets smashed, arm broke of, depatitated, fallen of base", "nokia, a nokia 3310 i think", "western electric 500 telephone", "walt has a big head"};
+    MXPSQL::MSLedit::MSLedit_Str editor{"big", "pee", "pee", "big pee pee", "a big is a bee as a pig", "a pee is a pig as a pee", "pee", "pee gets attacked", "pissed pee", "a pissed pee is an angry pee", "haha peach amibo gets smashed, arm broke of, depatitated, fallen of base", "nokia, a nokia 3310 i think", "western electric 500 telephone", "walt has a big head"};
     std::string file = "";
     std::string prompt = "";
     bool nbanner = false;
