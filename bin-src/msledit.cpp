@@ -128,6 +128,8 @@ int main(int argc, char** argv){
         }
     }
 
+    // std::cout << editor[30] << std::endl;
+
 
     try{
         editor.appendAtLine(5, "eee\nd");

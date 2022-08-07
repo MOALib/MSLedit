@@ -68,6 +68,7 @@
 #include <functional>
 #include <iterator>
 #include <memory>
+#include <regex>
 
 #include <mutex>
 #include <thread>
@@ -79,6 +80,7 @@
 #include <cstring>
 #include <cstddef>
 #include <cstdarg>
+#include <cerrno>
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
 #include <windows.h>
@@ -90,15 +92,50 @@ namespace MXPSQL{
         /**
          * @brief String builder and line editor. Base class for all variants.
          * 
-         * @tparam StringType a std::string-like object (basically any object that is based of std::basic_string) for manipulation
+         * @tparam StringType a string-like object for manipulation
+         * 
+         * @details
+         * 
+         * StringType should be a string-like object which is based of std::basic_string or std::basic_string api compatible.
+         * 
+         * You can use rope for StringType if the API is compatible with std::basic_string
          * 
          * @note This class has mutexes for almost all functions for thread safety (and possibly reeterant).
          * @warning Due to use of recursive_mutex for thread safety, this class may throw std::system_error, researching online shows that the mutex used here is hiding a bad design (but no, I will not replace that with wrapped functions becuase of big code). However, despite the thread safety checks, this class is not atomic.
          */
         template<typename StringType>
         class MSLedit{
-            public: // again
+            public: // again for fun :)
             /* None, at all! none_t */
+
+            public: // codes
+            /**
+             * @brief Standardized success exit code, for future proofing
+             * 
+             */
+            static const int Status_Success = EXIT_SUCCESS;
+            /**
+             * @brief Standardized failure exit code, for future proofing
+             * 
+             */
+            static const int Status_Failure = EXIT_FAILURE;
+
+            protected: // again for colorings
+
+            /// ANSI Escape Codes For Colors
+            class Coloring final {
+                private:
+                Coloring(){}
+
+                public:
+                /// green
+                static constexpr const char* Green = "\x1B[32m";
+                /// red
+                static constexpr const char* Red = "\033[31m";
+
+                /// normalize everything, the color will not just be normal automaically!
+                static constexpr const char* Normal = "\x1B[0m";
+            };
 
             protected: // again for hashing
 
@@ -1059,7 +1096,7 @@ namespace MXPSQL{
              * 
              * @note This mutex is mentioned in the note of this class, this synchronizes the class
              */
-            std::recursive_mutex lock_mutex;
+            mutable std::recursive_mutex lock_mutex;
             /**
              * @brief Config to modify the runtime behaviour of the string builder and editor
              * 
@@ -1096,10 +1133,10 @@ namespace MXPSQL{
              * 
              * If empty, will do nothing
              * 
-             * Arguments for handlers: begin, args, arglen, out, input, error
+             * Arguments for handlers: this instance, begin, args, arglen, out, input, error
              * 
              */
-            std::function<int(std::string, std::vector<std::string>, size_t, std::ostream&, std::istream&, std::ostream&)> replBeginHandler;
+            mutable std::function<int(MSLedit<StringType>&, std::string, std::vector<std::string>, size_t, std::ostream&, std::istream&, std::ostream&)> replBeginHandler;
 
             /**
              * @brief Construct a new MSLedit object with initializations
@@ -1315,6 +1352,12 @@ namespace MXPSQL{
              */
             std::string str();
             /**
+             * @brief Update the internal buffer (convert newlines in string to separate strings)
+             * 
+             * @note useful for subclasses
+             */
+            void updateText();
+            /**
              * @brief Get the Text object
              * 
              * @param formatted should be formatted with a line numbering?
@@ -1511,6 +1554,8 @@ namespace MXPSQL{
              * @param text2search the string to search
              * @param begin_line the starting line
              * @return std::pair<size_t, size_t> the first found instance of a string, else both is std::string::npos. first is line, second is the index of the needle in that line
+             * 
+             * @note begin_line starts with 1 instead of 0
              */
             std::pair<size_t, size_t> search(std::string text2search, size_t begin_line);
             /**
@@ -1521,9 +1566,37 @@ namespace MXPSQL{
              * @param counts how much instance to look for, use std::string::npos for as much as possible
              * @return std::vector<std::pair<size_t, size_t>> all instances of the searched string. Element pairs: first is line, second is the index of the needle in that line
              * 
-             * @note begin with 1 instead of 0
+             * @note begin_line starts with 1 instead of 0
              */
             std::vector<std::pair<size_t, size_t>> search(std::string text2search, size_t begin_line, size_t counts);
+            /**
+             * @brief Search a string
+             * 
+             * @param text2search the search string
+             * @return std::pair<size_t, size_t> the first found instance of a string, else both is std::string::npos. first is line, second is the index of the needle in that line
+             */
+            std::pair<size_t, size_t> searchRegex(std::string regex);
+            /**
+             * @brief Search a string from a starting line, regex edition
+             * 
+             * @param text2search the regex used for searching
+             * @param begin_line the starting line
+             * @return std::pair<size_t, size_t> the first found instance of a string, else both is std::string::npos. first is line, second is the index of the needle in that line
+             * 
+             * @note begin_line starts with 1 instead of 0
+             */
+            std::pair<size_t, size_t> searchRegex(std::string regex, size_t begin_line);
+            /**
+             * @brief Search for multiple instances, regex edition
+             * 
+             * @param text2search the regex used for searching
+             * @param begin_line the starting line
+             * @param counts how much instance to look for, use std::string::npos for as much as possible
+             * @return std::vector<std::pair<size_t, size_t>> all instances of the searched string. Element pairs: first is line, second is the index of the needle in that line
+             * 
+             * @note begin with 1 instead of 0
+             */
+            std::vector<std::pair<size_t, size_t>> searchRegex(std::string regex, size_t begin_line, size_t counts);
             /**
              * @brief Edit a line
              * 
@@ -2155,7 +2228,7 @@ namespace MXPSQL{
              * @param index the index
              * @return char the character
              * 
-             * @note You cannot modify the character from here
+             * @note Begin with 1 instead of 0 and you cannot change it here.
              */
             char operator[](int index);
 
@@ -2377,7 +2450,7 @@ namespace MXPSQL{
         void MSLedit<StringType>::readFile(std::string path){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             if(path.empty() || path.find_first_not_of(' ') == std::string::npos || path.length() < 1) path = file;
-            if(path.empty() || path.find_first_not_of(' ') == std::string::npos || path.length() < 1) throw std::runtime_error("File not set");
+            if(path.empty() || path.find_first_not_of(' ') == std::string::npos || path.length() < 1) throw std::logic_error("File not set");
             std::ifstream fstream(path, std::ios::binary);
             if(!fstream.is_open() || !fstream.good()){
                 if(fstream.is_open()) fstream.close();
@@ -2398,7 +2471,7 @@ namespace MXPSQL{
         void MSLedit<StringType>::writeFile(std::string path){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             if(path.empty() || path.find_first_not_of(' ') == std::string::npos || path.length() < 1) path = file;
-            if(path.empty() || path.find_first_not_of(' ') == std::string::npos || path.length() < 1) throw std::runtime_error("File not set");
+            if(path.empty() || path.find_first_not_of(' ') == std::string::npos || path.length() < 1) throw std::logic_error("File not set");
             std::ofstream fstream(path, std::ios::binary);
             if(!fstream.is_open() || !fstream.good()){
                 if(fstream.is_open()) fstream.close();
@@ -2439,7 +2512,10 @@ namespace MXPSQL{
             }
             writeFile(tmpfile);
             // attempt to use good old c style functions
-            if(std::rename(tmpfile.c_str(), path.c_str()) != 0) 
+            errno = 0;
+            int status = std::rename(tmpfile.c_str(), path.c_str());
+            int errs = errno;
+            if(status != 0 && (errs == EXDEV || errs == EEXIST)) 
             {
                 // We rely on fallback of the normal boring ifstream and ofstream c++ io for copying if there is problem with std::rename
                 // Something goes (maybe horribly or even catastrophically) wrong with it or you tried to copy between different filesystems or drive and we run fallback
@@ -2659,6 +2735,18 @@ namespace MXPSQL{
                     throw std::runtime_error((std::string("Unable to remove temporary file;") + tmpfile));
                 }
             }
+            else if(errs == ENAMETOOLONG){
+                throw std::runtime_error("Your destination file name was too long!");
+            }
+            else if(errs == EILSEQ){
+                throw std::runtime_error("Your filename is too illegal to be written B)");
+            }
+            else if(errs == EIO || errs == EROFS){
+                throw std::runtime_error("A failed IO occured. You may need to check your drive for failure. You also might be writting to a readonly file system.");
+            }
+            else if(errs != 0){
+                throw std::runtime_error(std::string("Unknown error occured! Strerror for you: ") + std::string(strerror(errs)));
+            }
         }
 
 
@@ -2750,6 +2838,11 @@ namespace MXPSQL{
         template<typename StringType>
         std::string MSLedit<StringType>::str(){
             return getText(false, -1, -1);
+        }
+
+        template<typename StringType>
+        void MSLedit<StringType>::updateText(){
+            setText(str());
         }
 
 
@@ -2997,15 +3090,50 @@ namespace MXPSQL{
         std::vector<std::pair<size_t, size_t>> MSLedit<StringType>::search(std::string text2search, size_t begin_line, size_t count){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::vector<std::pair<size_t, size_t>> poses;
+            updateText();
             std::vector<std::string> vectr(buffer);
 
-            for(size_t i = begin_line, c = 0; i < vectr.size() && (count == std::string::npos || c < count); i++){
+            for(size_t i = begin_line-1, c = 0; i < vectr.size() && (count == std::string::npos || c < count); i++){
                 std::string line = vectr.at(i);
                 size_t pos = line.find(text2search);
                 while(pos != std::string::npos){
                     poses.push_back(std::make_pair(i, pos));
                     c++;
-                    pos = line.find(text2search, pos);
+                    pos = line.find(text2search, pos+1);
+                }
+            }
+
+            return poses;
+        }
+
+        template<typename StringType>
+        std::pair<size_t, size_t> MSLedit<StringType>::searchRegex(std::string regex){
+            return searchRegex(regex, 1);
+        }
+
+        template<typename StringType>
+        std::pair<size_t, size_t> MSLedit<StringType>::searchRegex(std::string regex, size_t begin_line){
+            std::vector<std::pair<size_t, size_t>> rs = searchRegex(regex, begin_line, 1);
+            if(rs.size() < 1) return std::make_pair(std::string::npos, std::string::npos);
+            else return rs[0];
+        }
+
+        template<typename StringType>
+        std::vector<std::pair<size_t, size_t>> MSLedit<StringType>::searchRegex(std::string regex, size_t begin_line, size_t counts){
+            std::unique_lock<std::recursive_mutex> lock(lock_mutex);
+            std::vector<std::pair<size_t, size_t>> poses;
+            updateText();
+            std::vector<std::string> vectr(buffer);
+
+            std::regex regex_str_expr(regex);
+
+            for(size_t i = begin_line-1, c = 0; i < vectr.size() && (counts == std::string::npos || c < counts); i++){
+                std::string line = vectr.at(i);
+                std::smatch rmatches;
+                if(std::regex_search(line, rmatches, regex_str_expr)){
+                    for(size_t i2 = 0; i2 < rmatches.size(); i2++){
+                        poses.push_back(std::make_pair(i, rmatches.position(i2)));
+                    }
                 }
             }
 
@@ -3460,7 +3588,7 @@ namespace MXPSQL{
 
         template<typename StringType>
         int MSLedit<StringType>::repl(std::string prompt, std::ostream& out, std::istream& in, std::ostream& err){
-            int status = EXIT_SUCCESS;
+            int status = MSLedit::Status_Success;
             bool run = true;
             std::string l = "";
             std::vector<std::string> ls;
@@ -3490,10 +3618,10 @@ namespace MXPSQL{
             while(run){
                 try{
                     std::string begin = "";
+                    bool is_term_supported = false;
                     ls.clear();
                     
                     {
-                        bool is_supported = false;
                         {
                             std::string term = "";
                             {
@@ -3517,28 +3645,31 @@ namespace MXPSQL{
                                     bool isTermSupported = true;
                                     isTermSupported = ((term == "gnome-terminal") || (term == "xterm"));
 
-                                    is_supported = allowColor && isTermSupported;
+                                    is_term_supported = allowColor && isTermSupported;
                                 }
                             }
                         }
 
-                        if(is_supported){
+                        if(is_term_supported){
                             // print green
-                            out << "\x1B[32m";
+                            out << Coloring::Green;
                         }
 
                         out << prompt;
 
-                        if(is_supported){
+                        if(is_term_supported){
                             // normalize
-                            out << "\x1B[0m";
+                            out << Coloring::Normal;
                         }
                     }
 
                     if(!std::getline(in, l, '\n')){
+                        if(is_term_supported) err << Coloring::Red;
                         err << "Error getting input from user." << std::endl;
-                        status = EXIT_FAILURE;
+                        if(is_term_supported) err << Coloring::Red;
+                        status = MSLedit::Status_Failure;
                         run = false;
+                        break;
                     }
 
 
@@ -3591,7 +3722,7 @@ namespace MXPSQL{
                         while(!(opt == "y" || opt == "n")){
                             opt = "";
                             out << "Are you sure you want to quit? You may have unsaved documents, just save or don't quit to be sure. (Y/N/y/n) ";
-                            getline(in, opt, '\n');
+                            if(std::getline(in, opt, '\n'))
                             {
                                 std::string nopt = opt;
                                 for(char& c : nopt){
@@ -3599,6 +3730,13 @@ namespace MXPSQL{
                                 }
 
                                 opt = nopt;
+                            }
+                            else{
+                                if(is_term_supported) err << Coloring::Red;
+                                err << "bad input" << std::endl;
+                                if(is_term_supported) err << Coloring::Red;
+
+                                break;
                             }
 
                             if (in.rdbuf()->in_avail() > 0) {
@@ -3610,7 +3748,7 @@ namespace MXPSQL{
                             continue;
                         }
                         run = false;
-                        status = EXIT_SUCCESS;
+                        status = MSLedit::Status_Success;
                     }
                     else if(begin == "h" || begin == "help"){
                         {
@@ -3625,10 +3763,13 @@ namespace MXPSQL{
                         << "aae, appendAtEnd: Append a line at the end of document. Usage example: 'aae [your text here]'" << std::endl
                         << "anlae, appendNewLineAtEnd: Append newline at the end. Usage example: 'anlae'" << std::endl
                         << "aal, appendAtLine: Append text to a line. Usage example: 'aal [your line] [your text here]'" << std::endl
+                        << "ae, appendEdit: Append but have a way better (still dumb) editing services. Usage example: ae [your line] [EOF String]" << std::endl
                         << "ial, insertAtLine: Insert text before a line. Usage example: 'ial [your line] [your text here]'" << std::endl
                         << "inlal, insertNewLineAtLine: Insert a newline before a line. Usage example: 'inlal [your line]'" << std::endl
                         << "s, search: Search for text. Usage example: 'search [text]" << std::endl
-                        << "ss, ssearch: Search for text from a line and beyond. Usage example: 'search [line] [text]" << std::endl
+                        << "ss, superSearch: Search for text from a line and beyond. Usage example: 'search [line] [text]" << std::endl
+                        << "rs, regexSearch: search, but with regex. Usage example: 'regexSearch [regex]'" << std::endl
+                        << "srs, superRegexSearch: superSearch, but with regex. Usage example: 'superRegexSearch [line] [regex]'" << std::endl
                         << "el, editLine: Edit a line. Usage example: 'el [line] [your text]" << std::endl
                         << "del, delete: Delete a line. Usage example; 'del [your line]" << std::endl
                         << "open, read: Open a file. Usage example: 'open [not funny]'" << std::endl
@@ -3713,6 +3854,85 @@ namespace MXPSQL{
                                 }
 
                                 appendAtLine(line, ss.str());
+                            }
+                            catch(std::invalid_argument& ia){
+                                err << "Second argument provided is invalid, message: '" << ia.what() << "'" <<
+                                std::endl << ". If you see stoi on the message, that second input is wrong" << std::endl;
+                            }
+                            catch(std::out_of_range& ooa){
+                                err << "Second argument is out of range or some problem occured, did you try to edit beyond the limit? message: " << ooa.what() << "'" << std::endl;
+                            }
+                            catch(std::runtime_error& re){
+                                err << "An error had occured."
+                                << std::endl << "Here is the message btw: '" << re.what() << "'"
+                                << std::endl;
+                            }
+                        }
+                    }
+                    else if(begin == "ae" || begin == "appendEdit"){
+                        if(arglen < 2){
+                            err << "Missing arguments to '" << begin << "'" << std::endl;
+                        }
+                        else {
+                            // drop down to a smarted (but still dumb) editor
+                            std::string eofStr = "";
+                            std::stringstream apss; // don't even remove the 'p' or you get something bad. apps means APennd StringStream. Keeps mistyping it to apps
+                            int lineAppend = 0;
+                            try{
+                                {
+                                    std::vector<std::string> slicedargs(args);
+                                    lineAppend = stoi(slicedargs[0]);
+                                    slicedargs.erase(slicedargs.begin());
+                                    std::stringstream ss;
+                                    for(size_t i = 0; i < slicedargs.size(); i++){
+                                        if((i + 1) >= slicedargs.size()){
+                                            ss << slicedargs[i];
+                                        }
+                                        else{
+                                            ss << slicedargs[i] << " ";
+                                        }
+                                    }
+                                    eofStr = ss.str();
+                                }
+
+                                bool iRun = true;
+                                apss << std::endl;
+
+                                std::vector<std::string> BannersOk{"We are now going to the now better (but still dumb) editing service. " ,
+                                "Type the EOF string (exactly, no spaces or anything funny) to exit. ",
+                                "Your EOF string is: '" + eofStr + "'",
+                                "Oh, your EOF string '" + eofStr + "' is not included.",
+                                "Example: '" + eofStr + "'",
+                                "There is a newline inserted before the edited text.",
+                                "That is it, now go your editing!"};
+
+                                size_t bline = 0;
+                                for(std::string line : BannersOk){
+                                    out << line << std::endl;
+                                    bline = std::max(bline, line.size());
+                                }
+
+                                out << std::string(bline+5, '=') << std::endl;
+
+                                while(iRun){
+                                    std::string line = "";
+                                    if(!std::getline(in, line, '\n')){
+                                        if(is_term_supported) err << Coloring::Red;
+                                        err << "What is even going on with your input!!!" << std::endl;
+                                        if(is_term_supported) err << Coloring::Normal;
+                                        iRun = false;
+                                        break;
+                                    }
+                                    else if(line == eofStr){
+                                        out << "EOF Done! Ok we return back!" << std::endl;
+                                        iRun = false;
+                                    }
+                                    else{
+                                        apss << line << std::endl;
+                                    }
+                                }
+
+                                appendAtLine(lineAppend, apss.str());
                             }
                             catch(std::invalid_argument& ia){
                                 err << "Second argument provided is invalid, message: '" << ia.what() << "'" <<
@@ -3814,7 +4034,7 @@ namespace MXPSQL{
                             }
                         }
                     }
-                    else if(begin == "ssearch" || begin == "ss"){
+                    else if(begin == "superSearch" || begin == "ss"){
                         if(arglen < 2){
                             err << "Missing arguments to '" << begin << "'" << std::endl;
                         }
@@ -3849,7 +4069,37 @@ namespace MXPSQL{
                             }
                         }
                     }
-                    else if(begin == "is" || begin == "isearch"){
+                    else if(begin == "rs" || begin == "regexSearch"){
+                        if(arglen < 1){
+                            err << "Missing arguments to '" << begin << "'" << std::endl;
+                        }
+                        else{
+                            try{
+                                std::stringstream ss;
+                                for(size_t i = 0; i < arglen; i++){
+                                    if((i + 1) >= arglen){
+                                        ss << args[i];
+                                    }
+                                    else{
+                                        ss << args[i] << " ";
+                                    }
+                                }
+                                std::pair<size_t, size_t> location = searchRegex(ss.str());
+                                if(location.first == std::string::npos){
+                                    err << "Anything that matches with regex '" << ss.str() << "' not found." << std::endl;
+                                }
+                                else{
+                                    std::string marker = std::to_string(location.first+1) + "| ";
+                                    out << marker << stringAtLine(location.first+1) << std::endl
+                                    << std::string(location.second+marker.size(), ' ') << std::string((int) ss.str().size(), '^') << std::endl;
+                                }
+                            }
+                            catch(std::regex_error& re){
+                                out << "Regex.exe got ALT+F4 from existence. " << std::endl << (is_term_supported ? Coloring::Red : "") << re.what() << (is_term_supported ? Coloring::Normal : "") << std::endl;
+                            }
+                        }
+                    }
+                    else if(begin == "srs" || begin == "superRegexSearch"){
 
                     }
                     else if(begin == "el" || begin == "editLine"){
@@ -3935,7 +4185,7 @@ namespace MXPSQL{
                                         while(!(opt == "y" || opt == "n")){
                                             opt = "";
                                             out << "You want to open '" << ss.str() << "', Do you want to overwrite your current document (if it exists)? (Y/N/y/n) ";
-                                            getline(in, opt, '\n');
+                                            if(std::getline(in, opt, '\n'))
                                             {
                                                 std::string nopt = opt;
                                                 for(char& c : nopt){
@@ -3943,6 +4193,14 @@ namespace MXPSQL{
                                                 }
 
                                                 opt = nopt;
+                                            }
+                                            else{
+                                                if(is_term_supported) err << Coloring::Red;
+                                                err << "bad input" << std::endl;
+                                                if(is_term_supported) err << Coloring::Red;
+                                                run = false;
+                                                status = MSLedit::Status_Failure;
+                                                break;
                                             }
 
                                             if (in.rdbuf()->in_avail() > 0) {
@@ -3992,7 +4250,7 @@ namespace MXPSQL{
                                         while(!(opt == "y" || opt == "n")){
                                             opt = "";
                                             out << "The file called '" << ss.str() << "' exists. Do you want to overwrite it? (Y/N/y/n) ";
-                                            getline(in, opt, '\n');
+                                            if(std::getline(in, opt, '\n'))
                                             {
                                                 std::string nopt = opt;
                                                 for(char& c : nopt){
@@ -4000,6 +4258,14 @@ namespace MXPSQL{
                                                 }
 
                                                 opt = nopt;
+                                            }
+                                            else{
+                                                if(is_term_supported) err << Coloring::Red;
+                                                err << "bad input" << std::endl;
+                                                if(is_term_supported) err << Coloring::Red;
+                                                run = false;
+                                                status = MSLedit::Status_Failure;
+                                                break;
                                             }
 
                                             if (in.rdbuf()->in_avail() > 0) {
@@ -4044,18 +4310,20 @@ namespace MXPSQL{
                         }
                     }
                     else if(begin == "sh" || begin == "shell" || begin == "exec" || begin == "run" || begin == "cmd" || begin == "system"){
-                        bool allow = true;
                         {
-                            std::unique_lock<std::recursive_mutex> lock(lock_mutex);
-                            if(keyExists(nosystem)) allow = (getKey(nosystem) != "true");
-                        }
-                        if(!allow){
-                            err << "This command uses the function 'System' and it is disabled. Not sorry at all you cannot do this." << std::endl;
-                            continue;
+                            bool allow = true;
+                            {
+                                std::unique_lock<std::recursive_mutex> lock(lock_mutex);
+                                if(keyExists(nosystem)) allow = (getKey(nosystem) != "true");
+                            }
+                            if(!allow){
+                                err << "This command uses the function 'System' and it is disabled. Not sorry at all you cannot do this." << std::endl;
+                                continue;
+                            }
                         }
                         {
                             if(std::system(NULL) == 0){
-                                err << "This command uses the function 'System' and it needs a command prepecessor. You don't have one so sad." << std::endl;
+                                err << "This command uses the function 'System' and it needs a command processor. You don't have one so sad." << std::endl;
                                 continue;
                             }
                         }
@@ -4088,7 +4356,7 @@ namespace MXPSQL{
                         }
                         {
                             if(std::system(NULL) == 0){
-                                err << "This command uses the function 'System' and it needs a command prepecessor. You don't have one so sad." << std::endl;
+                                err << "This command uses the function 'System' and it needs a command processor. You don't have one so sad." << std::endl;
                                 continue;
                             }
                         }
@@ -4116,30 +4384,31 @@ namespace MXPSQL{
                         #endif
                     }
                     else{
-                        int hstatus = EXIT_FAILURE;
+                        int hstatus = MSLedit::Status_Failure;
 
                         if(((replBeginHandler) && (replBeginHandler != nullptr))){
                             try{
-                                hstatus = replBeginHandler(begin, args, arglen, out, in, err);
+                                hstatus = replBeginHandler(*this, begin, args, arglen, out, in, err);
                             }
                             catch(std::bad_function_call& bfc){
                                 err << "Bad REPL handler!" << std::endl << "Message btw: '" << bfc.what() << "'" << std::endl;
-                                hstatus = EXIT_FAILURE;
+                                hstatus = MSLedit::Status_Failure;
                             }
                         }
 
-                        if(hstatus != EXIT_SUCCESS) {
+                        if(hstatus != MSLedit::Status_Success) {
                             err << "A command called '" + begin + "' does not want to exist. (Not found)" << std::endl;
                         }
                     }
                 }
                 catch(std::exception& e){
                     err << "Exception caught: '" + std::string(e.what()) << "'" << std::endl;
-                    status = EXIT_FAILURE;
+                    status = MSLedit::Status_Failure;
                     run = false;
                 }
 
                 ls.clear();
+		updateText();
             }
 
             return status;
@@ -4250,6 +4519,7 @@ namespace MXPSQL{
 
         template<typename StringType>
         char MSLedit<StringType>::operator[](int index){
+            std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return str()[index];
         }
         #endif
