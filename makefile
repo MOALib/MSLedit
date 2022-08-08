@@ -1,8 +1,9 @@
 .DEFAULT_GOALS := all
 SRC_DIR=./bin-src
+PKG_ENV_DIR=./pkgenv
 BIND_DIR=./bindings
 
-.PHONY: all build bindings docs init clean
+.PHONY: all build bindings mkpkg docs init clean
 
 all: build
 
@@ -13,6 +14,10 @@ build:
 bindings:
 	@echo "Delegating to makefile in $(BIND_DIR)"
 	@cd $(BIND_DIR) && $(MAKE) bind
+
+mkpkg:
+	@echo "Delegating to makefile in $(PKG_ENV_DIR)"
+	@cd $(PKG_ENV_DIR) && $(MAKE)
 
 docs:
 	@echo "Generating docs"

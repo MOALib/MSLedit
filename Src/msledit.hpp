@@ -1137,6 +1137,11 @@ namespace MXPSQL{
              * 
              */
             mutable std::function<int(MSLedit<StringType>&, std::string, std::vector<std::string>, size_t, std::ostream&, std::istream&, std::ostream&)> replBeginHandler;
+            /**
+             * @brief Hook this up to display extra info on the help screen
+             * 
+             */
+            mutable std::function<std::string()> replHelpHandler;
 
             /**
              * @brief Construct a new MSLedit object with initializations
@@ -2014,13 +2019,13 @@ namespace MXPSQL{
              * @param prompt the prompt
              * @param out output stream
              * @param in input stream
-             * @param inputHandler function to handle input. return false to indicate error. Interface: input stream, output string
+             * @param getlineInputHandler function to handle input. return false to indicate error. Interface: input stream, output string
              * @param err error stream
              * @return int the status code of the REPL
              * 
              * @note This is where you hook up gnu readline, libedit or linenoise.
              */
-            int repl(std::string prompt, std::ostream& out, std::istream& in, std::function<bool(std::istream&, std::string&)> inputHandler, std::ostream& err);
+            int repl(std::string prompt, std::ostream& out, std::istream& in, std::function<bool(std::istream&, std::string&)> getlineInputHandler, std::ostream& err);
 
             /**
              * @brief Compare this class instance to a string
@@ -3607,7 +3612,7 @@ namespace MXPSQL{
         }
 
         template<typename StringType>
-        int MSLedit<StringType>::repl(std::string prompt, std::ostream& out, std::istream& in, std::function<bool(std::istream&, std::string&)> inputHandler, std::ostream& err){
+        int MSLedit<StringType>::repl(std::string prompt, std::ostream& out, std::istream& in, std::function<bool(std::istream&, std::string&)> getlineInputHandler, std::ostream& err){
             int status = MSLedit::Status_Success;
             bool run = true;
             std::string l = "";
@@ -3622,7 +3627,12 @@ namespace MXPSQL{
 
                 if(allowBanner){
                     size_t s = 0;
-                    std::vector<std::string> banners{"MSLedit", "Written by MXPSQL", "Entering REPL", "Type 'h' for help"};
+                    std::vector<std::string> banners{
+                        "MSLedit", 
+                        "Written by MXPSQL", 
+                        "Library licensed to you under the MIT License",
+                        "Entering REPL", 
+                        "Type 'h' for help"};
                     std::string banner = "";
                     for(std::string bnr : banners){
                         size_t s2 = bnr.length() + 5;
@@ -3683,7 +3693,7 @@ namespace MXPSQL{
                         }
                     }
 
-                    if(!inputHandler(in, l)){
+                    if(!getlineInputHandler(in, l)){
                         if(is_term_supported) err << Coloring::Red;
                         err << "Error getting input from user." << std::endl;
                         if(is_term_supported) err << Coloring::Red;
@@ -3742,7 +3752,7 @@ namespace MXPSQL{
                         while(!(opt == "y" || opt == "n")){
                             opt = "";
                             out << "Are you sure you want to quit? You may have unsaved documents, just save or don't quit to be sure. (Y/N/y/n) ";
-                            if(inputHandler(in, opt))
+                            if(getlineInputHandler(in, opt))
                             {
                                 std::string nopt = opt;
                                 for(char& c : nopt){
@@ -3797,6 +3807,7 @@ namespace MXPSQL{
                         << "prompt: Set prompt. Usage example: '> ee your not so funny prompt maybe> '" << std::endl
                         << "sh, shell, exec, run, cmd, system: Run a command. Usage example: 'exec echo monke'" << std::endl
                         << "ed: ed, you know what ed is. (runs 'ed' on posix environments, dumb on windows) Usage: 'ed [your ed arguments]'" << std::endl
+                        << (((replHelpHandler) && (replHelpHandler != nullptr)) ? (replHelpHandler()+"\n") : "")
                         << std::endl;
                     }
                     else if(begin == "v" || begin == "view" || begin == "p" || begin == "print"){
@@ -3936,7 +3947,7 @@ namespace MXPSQL{
 
                                 while(iRun){
                                     std::string line = "";
-                                    if(!inputHandler(in, line)){
+                                    if(!getlineInputHandler(in, line)){
                                         if(is_term_supported) err << Coloring::Red;
                                         err << "What is even going on with your input!!!" << std::endl;
                                         if(is_term_supported) err << Coloring::Normal;
@@ -4205,7 +4216,7 @@ namespace MXPSQL{
                                         while(!(opt == "y" || opt == "n")){
                                             opt = "";
                                             out << "You want to open '" << ss.str() << "', Do you want to overwrite your current document (if it exists)? (Y/N/y/n) ";
-                                            if(inputHandler(in, opt))
+                                            if(getlineInputHandler(in, opt))
                                             {
                                                 std::string nopt = opt;
                                                 for(char& c : nopt){
@@ -4270,7 +4281,7 @@ namespace MXPSQL{
                                         while(!(opt == "y" || opt == "n")){
                                             opt = "";
                                             out << "The file called '" << ss.str() << "' exists. Do you want to overwrite it? (Y/N/y/n) ";
-                                            if(inputHandler(in, opt))
+                                            if(getlineInputHandler(in, opt))
                                             {
                                                 std::string nopt = opt;
                                                 for(char& c : nopt){

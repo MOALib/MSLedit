@@ -51,6 +51,10 @@ auto rl_handler = [](std::istream& input, std::string& out) -> bool {
     return status;
 };
 
+auto gplInfo = []() -> std::string {
+    return "\nThis version is licensed under GPL due to using readline. Your copy of the license is in the sources.";
+};
+
 /**
  * @brief Main method of the MSLedit binary, GPLd
  * 
@@ -208,6 +212,7 @@ int main(int argc, char** argv){
             in.get();
             return EXIT_SUCCESS;
         }; */
+        editor.replHelpHandler = gplInfo;
         status = editor.repl((editor.keyExists(editor.nprompt) ? editor.getKey(editor.nprompt) : "> "), std::cout, std::cin, rl_handler, std::cerr);
     }
     catch(std::runtime_error& re){

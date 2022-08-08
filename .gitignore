@@ -21,3 +21,9 @@ tools/*
 !tools/README.md
 !tools/myscript/
 !/tools/gettools.*
+
+
+
+
+# Explicit
+./out

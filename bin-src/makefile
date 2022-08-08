@@ -1,15 +1,15 @@
 CXX:=g++
 MINGWCXX=i686-w64-mingw32-$(CXX)
-CXXFLAGS=-L/usr/lib    -pipe -static -std=c++11 -pedantic -Wall -Wextra -Werror -fdiagnostics-color -Og -g
-
-RL_CFLAGS=-lreadline
+CXXFLAGS=-pipe -std=c++11 -pedantic -Wall -Wextra -Werror -fdiagnostics-color -Og -g
+STATIC_FLAG=-static -lstdc++ -static-libstdc++
+RL_CFLAGS=-lreadline -lncurses
 # -fsanitize=pointer-compare,pointer-subtract,address,leak,undefined
 
 BIN_SRC=msledit.cpp
 GPL_BIN_SRC=msledit-rg3.cpp
 LIB_SRC=msleditlib.cpp
 
-BIN_DIR=bin
+BIN_DIR=../out
 BIN_BIN=$(BIN_DIR)/msledit.exe
 GPL_BIN_BIN=$(BIN_DIR)/msledit-rg3.exe
 BIN_MINGW-BIN=$(BIN_DIR)/msledit-n.exe
@@ -25,17 +25,21 @@ cls:
 build: cls makebin makenbin makelib
 
 makebin:
-	$(CXX) $(CXXFLAGS) $(ECFLAGS) $(BIN_SRC) -o $(BIN_BIN) # make binary
+	$(CXX) $(STATIC_FLAG) $(CXXFLAGS) $(ECFLAGS) $(BIN_SRC) -o $(BIN_BIN) # make binary
 
 	@# Non essential, this is an example for hooking up readline
-	-$(CXX) $(CXXFLAGS) $(RL_CFLAGS) $(ECFLAGS) $(GPL_BIN_SRC) -o $(GPL_BIN_BIN) # make GPLd binary
-	@printf '%s' '\n\n'
+	-$(CXX) $(STATIC_FLAG) $(CXXFLAGS) $(ECFLAGS) $(GPL_BIN_SRC) -o $(GPL_BIN_BIN) $(RL_CFLAGS) # make GPLd binary
+
+	@printf "\n\n"
 
 makenbin:
 	@# Non essential due to being native versions ok
-	- $(MINGWCXX) $(CXXFLAGS) $(ECFLAGS) $(BIN_SRC) -o $(BIN_MINGW-BIN) # make native binary
-	- $(MINGWCXX) $(CXXFLAGS) $(RL_CFLAGS) $(ECFLAGS) $(GPL_BIN_SRC) -o $(GPL_BIN_BIN) # make native GPLd binary
-	@printf '%s' '\n\n'
+	-$(MINGWCXX) $(STATIC_FLAG) $(CXXFLAGS) $(ECFLAGS) $(BIN_SRC) -o $(BIN_MINGW-BIN) # make native binary
+	
+	@# separate stuff ok
+	-$(MINGWCXX) $(STATIC_FLAG) $(CXXFLAGS) $(ECFLAGS) $(GPL_BIN_SRC) -o $(GPL_MINGW_BIN) $(RL_CFLAGS) # make native GPLd binary
+
+	@printf "\n\n"
 
 makelib:
 	: # make library
