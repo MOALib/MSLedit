@@ -22,7 +22,11 @@ gettools
 
 ```
 make
-./bin-src/bin/msledit.exe
+# Compiled with cygwin and mingw
+./out/msledit.exe # normal binary
+./out/msledit-n.exe # mingw binary
+./out/msledit-rg3.exe # gpl gnu readline binary
+./out/msledit-rg3n.exe # gpl gnu readline mingw binary
 ```
  
 ## Commands
