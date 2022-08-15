@@ -1,6 +1,10 @@
 CXX:=g++
 MINGWCXX=i686-w64-mingw32-$(CXX)
-CXXFLAGS=-pipe -std=c++11 -pedantic -Wall -Wextra -Werror -fdiagnostics-color -Og -g
+
+# change -std=c++11 to -std=gnu++11 to enable POSIX functions
+STD=c++11
+
+CXXFLAGS=-pipe -std=$(STD) -pedantic -Wall -Wextra -Werror -fdiagnostics-color -Og -g
 STATIC_FLAG=-static -lstdc++ -static-libstdc++
 RL_CFLAGS=-lreadline -lncurses
 # -fsanitize=pointer-compare,pointer-subtract,address,leak,undefined

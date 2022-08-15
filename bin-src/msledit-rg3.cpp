@@ -37,10 +37,11 @@
 #include <readline/history.h>
 
 auto rl_handler = [](std::istream& input, std::string& out) -> bool {
-    char* rl_str = readline("");
+    char* rl_str = (char*) NULL;
+    rl_str = readline("");
     (void(input));
     bool status = true;
-    if(!(rl_str == NULL || rl_str == nullptr)){
+    if(!(rl_str == NULL || rl_str == nullptr) && (rl_str && *rl_str)){
         out = std::string(rl_str);
         add_history(rl_str);
     }

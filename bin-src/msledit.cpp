@@ -54,12 +54,6 @@ int main(int argc, char** argv){
     bool cleardoc = false;
     bool ncolor = false;
 
-    if(sizeof(editor) >= std::string::npos){
-        std::cerr << "bad type size, undefined behaviour has occured. Terminating. (This has gone unstable)" << std::endl;
-        emergency_memory.reset();
-        std::abort(); // abortion
-    }
-
     for(int i = 1; i < argc; i++){
         std::string arg = std::string(argv[i]);
         bool nextOptAvailable = ((i+1)<argc);

@@ -1,4 +1,4 @@
-#ifndef MXPSQL_MSLedit_HPP
+#ifndef MXPSQL_MSLedit_MSLedit_HPP
 /**
  * @file msledit.hpp
  * @author MXPSQL
@@ -35,7 +35,7 @@
  * @brief Include guard
  * 
  */
-#define MXPSQL_MSLedit_HPP
+#define MXPSQL_MSLedit_MSLedit_HPP
 
 #if (!defined(__cplusplus))
     #error This project can only be compiled as C++ code
@@ -69,6 +69,7 @@
 #include <iterator>
 #include <memory>
 #include <regex>
+#include <random>
 
 #include <mutex>
 #include <thread>
@@ -84,6 +85,14 @@
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
 #include <windows.h>
+#include <winnt.h>
+#include <stringapiset.h>
+#elif defined(__CYGWIN__) || (defined(unix) || defined(__unix) || defined(__unix__)) || (defined(__linux__) || defined(linux) || defined(__linux)) || (defined(__APPLE__) && defined(__MACH__)) || (defined(__hpux)) || (defined(_AIX)) || (defined(__sun) && defined(__SVR4))
+#include <unistd.h>
+#include <fcntl.h>
+
+#include <sys/stat.h>
+#include <sys/param.h>
 #endif
 
 namespace MXPSQL{
@@ -513,34 +522,54 @@ namespace MXPSQL{
              * 
              * SSS means Stupid Simple Summing.
              * 
-             * It is called that because it uses stupid summing of char to size_t
+             * It is called that because it uses stupid summing (and xor dependent on position) of char to size_t
+             * 
+             * 
+             * How does it work.
+             * 
+             * 1. Get character and current position
+             * 2. Add the character to a variable
+             * 3. Apply XOR based on the position
+             * 4. Repeat until it is done
              * 
              * @param c1 string 1
              * @param c2 string 2
+             * @param out1 checksum output of c1
+             * @param out2 checksum output of c2
+             * 
              * @return true match
              * @return false no
              */
-            bool compareStringSSS(std::string c1, std::string c2){
+            bool compareStringSSS(std::string c1, std::string c2, size_t* out1, size_t* out2){
                 bool simplesum_status = true;
                 {
                     std::istringstream in_cmp_1(c1);
                     std::istringstream in_cmp_2(c2);
 
                     // simple char to long summing checksum
-                    typedef size_t lsize_t; // yeah
-                    lsize_t simplesum_1 = 0;
-                    lsize_t simplesum_2 = 0;
+                    size_t simplesum_1 = 0;
+                    size_t simplesum_2 = 0;
+                    
+                    size_t in1_pos = 0;
+                    size_t in2_pos = 0;
 
                     char ch1 = 0;
                     char ch2 = 0;
 
                     while(in_cmp_1.get(ch1)){
-                        simplesum_1 += ch1;
+                        size_t p = ch1 + in1_pos;
+                        simplesum_1 += p;
+                        in1_pos++;
                     }
                     
                     while(in_cmp_2.get(ch2)){
-                        simplesum_2 += ch2;
+                        size_t p = ch2 + in2_pos;
+                        simplesum_2 += p;
+                        in2_pos++;
                     }
+
+                    if(out1 != nullptr || out1 != NULL) *out1 = simplesum_1;
+                    if(out2 != nullptr || out2 != NULL) *out2 = simplesum_2;
 
                     simplesum_status = simplesum_1 == simplesum_2;
                 }
@@ -1080,6 +1109,12 @@ namespace MXPSQL{
              */
             std::va_list vaargs_list;
 
+            /**
+             * @brief What's this?
+             * 
+             */
+            std::string sarah = "Sarah's Marie Claire Black Office High Heels is broken and one of it's sides is torn up due to abusing it and battling it against other heels for a video, but it survived and she still wears it to this day due to destroying the other heel and so it remains the only heel she had as she put the rest in the muddy basement, the surviving, albeit broken high heel, she still uses it for everyday, governmental and workforce usage, that heel is the first one she had and she kept it to this day.";
+
             protected: // first
             /**
              * @brief The internal buffer
@@ -1325,11 +1360,21 @@ namespace MXPSQL{
              * 
              * If that fails too, an exception is thrown
              * 
+             * 
+             * The exception message is special,
+             * it has a format which is "message;tempfile;errno"
+             * 
+             * You can split by the character ';' to get the errno code and the temporary file.
+             * 
+             * If you find \\\\Nope on the tempfile area, there is no temporary file
+             * 
+             * If you find Nope in the errno area, there is no errno. errno is suppoused to be a number
+             * 
              * @param path the file path
              * 
              * @see writeFile
              * 
-             * @note Throws exception when a problem occurs (copy failure, file mismatch, etc), you can get the temporary file by splitting the message using the ';' as the delimiter (format: 'Message;TempFile').
+             * @note Throws exception when a problem occurs (copy failure, file mismatch, etc), look at the details for more info in the error message
              */
             void writeFileLocked(std::string path);
             /**
@@ -1577,14 +1622,14 @@ namespace MXPSQL{
             /**
              * @brief Search a string
              * 
-             * @param text2search the search string
+             * @param regex the regex used for searching
              * @return std::pair<size_t, size_t> the first found instance of a string, else both is std::string::npos. first is line, second is the index of the needle in that line
              */
             std::pair<size_t, size_t> searchRegex(std::string regex);
             /**
              * @brief Search a string from a starting line, regex edition
              * 
-             * @param text2search the regex used for searching
+             * @param regex the regex used for searching
              * @param begin_line the starting line
              * @return std::pair<size_t, size_t> the first found instance of a string, else both is std::string::npos. first is line, second is the index of the needle in that line
              * 
@@ -1594,7 +1639,7 @@ namespace MXPSQL{
             /**
              * @brief Search for multiple instances, regex edition
              * 
-             * @param text2search the regex used for searching
+             * @param regex the regex used for searching
              * @param begin_line the starting line
              * @param counts how much instance to look for, use std::string::npos for as much as possible
              * @return std::vector<std::pair<size_t, size_t>> all instances of the searched string. Element pairs: first is line, second is the index of the needle in that line
@@ -2060,22 +2105,28 @@ namespace MXPSQL{
              * @brief Compare with stupid summing each character
              * 
              * @param mystr other string to compare with
+             * @param thischksum this instance's checksum value. nullptr to discard value
+             * @param otherchksum mystr's checksum value. nullptr to discard value
+             * 
              * @return true the checksum of this class' text matches with the checksum of mystr. This means that the text matches
              * @return false not match
              * 
              * @see compareStringSSS
              */
-            bool stupidSimpleSummingCompare(std::string mystr);
+            bool stupidSimpleSummingCompare(std::string mystr, size_t* thischksum, size_t* otherchksum);
             /**
              * @brief Compare with stupid summing of each charactee
              * 
              * @param miss other instance
+             * @param thischksum this instance's checksum value. nullptr to discard value
+             * @param otherchksum miss' checksum value. nullptr to discard value
+             * 
              * @return true both checksum match
              * @return false no
              * 
              * @see compareStringSSS
              */
-            bool stupidSimpleSummingCompare(MSLedit<StringType>& miss);
+            bool stupidSimpleSummingCompare(MSLedit<StringType>& miss, size_t* thischksum, size_t* otherchksum);
             /**
              * @brief Compare with MD5
              * 
@@ -2509,16 +2560,88 @@ namespace MXPSQL{
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::string tmpfile = "";
             bool isTaken = true;
-            while(isTaken){
+            static auto genTmpFileName = []() -> std::string {
+                static std::string befstr = "Sarah";
+                std::string fstr = "";
+                #if (defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__))
+                DWORD teRetVal = 0; // temp env return value
+                UINT gtRetVal = 0; // get temp return value
+
+                TCHAR tpath[MAX_PATH]; // temp dir
+                TCHAR fpath[MAX_PATH]; // temp file
+
+                teRetVal = GetTempPath(MAX_PATH, tpath);
+                if (teRetVal > MAX_PATH || (teRetVal == 0)){
+                    throw std::runtime_error("Unable to grab temporary directory;\\\\\\Nope;Nope");
+                }
+
+                gtRetVal = GetTempFileName(fpath, TEXT(befstr.c_str()), 0, fpath);
+                if(gtRetVal == 0){
+                    throw std::runtime_error("Failed to generate random file name for locking;\\\\\\Nope;Nope");
+                }
+
+                std::vector<char> fpath_c(MAX_PATH);
+                // char fpath_c[MAX_PATH] = {0};
+
+                #if (defined(UNICODE) || defined(Unicode))
+                #else
+                std::strncpy(&fpath_c[0], fpath, MAX_PATH);
+                std::cout << fpath_c.size() << std::endl;
+                // std::strncpy(fpath_c, fpath, MAX_PATH);
+                #endif
+
+                fstr = std::string(fpath_c.begin(), fpath_c.end()); 
+                // fstr = std::string(fpath_c);
+
+                #elif !defined(__STRICT_ANSI__) && (defined(__CYGWIN__) || (defined(unix) || defined(__unix) || defined(__unix__)) || (defined(__APPLE__) && defined(__MACH__)) || (defined(__linux) || defined(linux) || (__linux__)))
+                
+                char* tempenv = std::getenv("TEMP");
+                char* ext = (char*) "XXXXXX";
+                if(tempenv == NULL || tempenv == nullptr){
+                    tempenv = (char*) "/tmp";
+                }
+
+                std::cout << "posix method" << std::endl;
+
+                std::vector<char> tempfile;
+                {
+                    std::stringstream ss;
+                    std::string tempfile_s = "";
+                    ss << tempenv << "/" << befstr << ext;
+                    tempfile_s = ss.str();
+                    std::copy(tempfile_s.begin(), tempfile_s.end(), std::back_inserter(tempfile));
+                }
+
+                int fd = mkstemp(&tempfile[0]);
+
+                {
+                    fstr = std::string(tempfile.begin(), tempfile.end());
+                }
+
+                if(fd < 1){
+                    throw std::runtime_error(std::string("Unable to generate random file name for locking;") + fstr + std::string(";") + std::string(std::to_string(errno)));
+                }
+                else{
+                    close(fd);
+                }
+
+                #else
+                ((void)befstr);
                 {
                     // make temp file
                     char tmpfile_tmp[L_tmpnam];
-                    char* ret = std::tmpnam(tmpfile_tmp); // stfu compilers that warn about this (bad tmpnam), I am not using C-Style FILE* IO (Bad), POSIX mkstemp (Not portable), C++17 Filesystem API (NO C++17 only, C++11 must support).
-                    if(((!ret) || (ret == NULL))){
-                        throw std::runtime_error("Unable to generate random file name for locking");
+                    char* ret = std::tmpnam(tmpfile_tmp); // stfu compilers that warn about this (bad tmpnam), I am not using C-Style FILE* IO (Bad), POSIX tempnam and windows GetTempFileName (Not portable), C++17 Filesystem API (NO C++17 only, C++11 must support). Go look at the unix section if you want POSIX function and the windows section for windows GetTempFileName. It's not rlly a problem anymore on good platforms ok.
+                    if(((!ret) || (ret == NULL || ret == nullptr))){
+                        throw std::runtime_error("Unable to generate random file name for locking;\\\\Nope;" + std::string(std::to_string(errno)));
                     }
-                    tmpfile = std::string(tmpfile_tmp);
+                    fstr += std::string(tmpfile_tmp);
                 }
+                #endif
+                return fstr;
+            };
+
+            while(isTaken){
+                tmpfile = genTmpFileName();
                 {
                     // check if it is taken
                     std::ifstream chk_in(tmpfile, std::ios::binary);
@@ -2553,7 +2676,7 @@ namespace MXPSQL{
                         if(out.is_open()){
                             out.close();
                         }
-                        throw std::runtime_error((std::string("Unable to copy file from temporary file;") + tmpfile));
+                        throw std::runtime_error((std::string("Unable to copy file from temporary file;") + tmpfile + std::string(std::string(";") + std::to_string(errno))));
                     }
 
                     out << in.rdbuf();
@@ -2582,7 +2705,7 @@ namespace MXPSQL{
                         if(in_cmp_2.is_open()){
                             in_cmp_2.close();
                         }
-                        throw std::runtime_error((std::string("Unable to compare temporary file to destionation file path due to IO Error;") + tmpfile));
+                        throw std::runtime_error((std::string("Unable to compare temporary file to destionation file path due to IO Error;") + tmpfile + std::string(std::string(";") + std::to_string(errno))));
                     }
 
                     if(in_cmp_1.tellg() != in_cmp_2.tellg()){
@@ -2594,7 +2717,7 @@ namespace MXPSQL{
                         if(in_cmp_2.is_open()){
                             in_cmp_2.close();
                         }
-                        throw std::runtime_error((std::string("Size mismatch between temporary file to destionation file path;") + tmpfile));
+                        throw std::runtime_error((std::string("Size mismatch between temporary file to destionation file path;") + tmpfile + std::string(std::string(";") + std::to_string(errno))));
                     }
 
                     if(!in_cmp_1.seekg(0, std::ifstream::beg) || !in_cmp_2.seekg(0, std::ifstream::beg)){
@@ -2605,7 +2728,7 @@ namespace MXPSQL{
                         if(in_cmp_2.is_open()){
                             in_cmp_2.close();
                         }
-                        throw std::runtime_error((std::string("Unable to set reading point thingy (?) to original position. failbit is broken lmao;") + tmpfile));
+                        throw std::runtime_error((std::string("Unable to set reading point thingy (?) to original position. failbit is broken lmao;") + tmpfile + std::string(std::string(";") + std::to_string(errno))));
                     }
 
                     in_cmp_1.clear();
@@ -2625,7 +2748,9 @@ namespace MXPSQL{
                             std::string(
                                 std::istreambuf_iterator<char>(in_cmp_2),
                                 std::istreambuf_iterator<char>()
-                            )
+                            ),
+                            nullptr,
+                            nullptr
                         );
 
                         if(!in_cmp_1.seekg(0, std::ifstream::beg) || !in_cmp_2.seekg(0, std::ifstream::beg)){
@@ -2636,7 +2761,7 @@ namespace MXPSQL{
                             if(in_cmp_2.is_open()){
                                 in_cmp_2.close();
                             }
-                            throw std::runtime_error((std::string("Unable to set reading point thingy (?) to original position. failbit is broken lmao;") + tmpfile));
+                            throw std::runtime_error((std::string("Unable to set reading point thingy (?) to original position. failbit is broken lmao;") + tmpfile + std::string(std::string(";") + std::to_string(errno))));
                         }
 
                         in_cmp_1.clear();
@@ -2662,7 +2787,7 @@ namespace MXPSQL{
                             if(in_cmp_2.is_open()){
                                 in_cmp_2.close();
                             }
-                            throw std::runtime_error((std::string("Unable to set reading point thingy (?) to original position. failbit is broken lmao;") + tmpfile));
+                            throw std::runtime_error((std::string("Unable to set reading point thingy (?) to original position. failbit is broken lmao;") + tmpfile + std::string(std::string(";") + std::to_string(errno))));
                         }
 
                         in_cmp_1.clear();
@@ -2687,7 +2812,7 @@ namespace MXPSQL{
                             if(in_cmp_2.is_open()){
                                 in_cmp_2.close();
                             }
-                            throw std::runtime_error((std::string("Unable to set reading point thingy (?) to original position. failbit is broken lmao;") + tmpfile));
+                            throw std::runtime_error((std::string("Unable to set reading point thingy (?) to original position. failbit is broken lmao;") + tmpfile + std::string(std::string(";") + std::to_string(errno))));
                         }
 
                         in_cmp_1.clear();
@@ -2712,7 +2837,7 @@ namespace MXPSQL{
                             if(in_cmp_2.is_open()){
                                 in_cmp_2.close();
                             }
-                            throw std::runtime_error((std::string("Unable to set reading point thingy (?) to original position. failbit is broken lmao;") + tmpfile));
+                            throw std::runtime_error((std::string("Unable to set reading point thingy (?) to original position. failbit is broken lmao;") + tmpfile + std::string(std::string(";") + std::to_string(errno))));
                         }
 
                         in_cmp_1.clear();
@@ -2745,25 +2870,25 @@ namespace MXPSQL{
                         if(in_cmp_2.is_open()){
                             in_cmp_2.close();
                         }
-                        throw std::runtime_error((std::string("Content mismatch between temporary file to destionation file path;") + tmpfile));
+                        throw std::runtime_error((std::string("Content mismatch between temporary file to destionation file path;") + tmpfile + std::string(std::string(";") + std::to_string(errno))));
                     }
                 }
                 // remove temporary file
                 if(std::remove(tmpfile.c_str()) != 0){
-                    throw std::runtime_error((std::string("Unable to remove temporary file;") + tmpfile));
+                    throw std::runtime_error((std::string("Unable to remove temporary file;") + tmpfile + std::string(std::string(";") + std::to_string(errno))));
                 }
             }
             else if(errs == ENAMETOOLONG){
-                throw std::runtime_error("Your destination file name was too long!");
+                throw std::runtime_error("Your destination file name was too long!" + std::string(std::string(";") + std::to_string(errno)));
             }
             else if(errs == EILSEQ){
-                throw std::runtime_error("Your filename is too illegal to be written B)");
+                throw std::runtime_error("Your filename is too illegal to be written B)" + std::string(std::string(";") + std::to_string(errno)));
             }
             else if(errs == EIO || errs == EROFS){
-                throw std::runtime_error("A failed IO occured. You may need to check your drive for failure. You also might be writting to a readonly file system.");
+                throw std::runtime_error("A failed IO occured. You may need to check your drive for failure. You also might be writting to a readonly file system." + std::string(std::string(";") + std::to_string(errno)));
             }
             else if(errs != 0){
-                throw std::runtime_error(std::string("Unknown error occured! Strerror for you: ") + std::string(strerror(errs)));
+                throw std::runtime_error(std::string("Unknown error occured! ;") + tmpfile + std::string(std::string(";") + std::to_string(errno)));
             }
         }
 
@@ -3427,7 +3552,7 @@ namespace MXPSQL{
                 throw std::length_error("Unable to write pointer to temporary buffer");
                 return status;
             }
-            for(char c : autocstr){
+            for(const char c : autocstr){
                 ssstr += c;
             }
             insert(position, ssstr);
@@ -3634,7 +3759,7 @@ namespace MXPSQL{
                         "Entering REPL", 
                         "Type 'h' for help"};
                     std::string banner = "";
-                    for(std::string bnr : banners){
+                    for(const std::string& bnr : banners){
                         size_t s2 = bnr.length() + 5;
                         if(s2 > s){
                             s = s2;
@@ -3938,9 +4063,11 @@ namespace MXPSQL{
                                 "That is it, now go your editing!"};
 
                                 size_t bline = 0;
-                                for(std::string line : BannersOk){
-                                    out << line << std::endl;
-                                    bline = std::max(bline, line.size());
+                                for(const std::string& bnr : BannersOk){
+                                    size_t s2 = bnr.length() + 5;
+                                    if(s2 > bline){
+                                        bline = s2;
+                                    }
                                 }
 
                                 out << std::string(bline+5, '=') << std::endl;
@@ -4262,9 +4389,9 @@ namespace MXPSQL{
                             err << "Missing arguments to '" << begin << "'" << std::endl;
                         }
                         else{
+                            std::stringstream ss;
                             try{
                                 std::locale loc;
-                                std::stringstream ss;
                                 for(size_t i = 0; i < arglen; i++){
                                     if((i + 1) >= arglen){
                                         ss << args[i];
@@ -4309,17 +4436,55 @@ namespace MXPSQL{
                                         }
                                     }
 
-                                    out << "File '" << ss.str() << "' was written." << std::endl;
                                     writeFileLocked(ss.str());
 
                                     if(ifs.is_open()) ifs.close();
+
+                                    out << "File '" << ss.str() << "' was written." << std::endl;
                                 }
 
                             }
                             catch(std::runtime_error& re){
+                                int err_thing = 0;
+                                {
+                                    std::vector<std::string> tok;
+                                    {
+                                        std::string token = "";
+                                        std::istringstream iss(re.what());
+                                        while(std::getline(iss, token, ';')){tok.push_back(token);};
+                                    }
+                                    err_thing = std::stoi(tok[2]);
+                                }
+
                                 err << "An error had occured. Something may possibly gone wrong when writing the file. "
                                 << std::endl << "Here is the message btw: '" << re.what() << "'"
+                                << std::endl << "Here is the strerror(errno) message btw (yet again): '" << std::string(strerror(err_thing)) << "'"
                                 << std::endl;
+
+                                // best on windows systems
+                                bool I_Won_This_Battle_Yes_Or_No = false;
+                                try{
+                                    out << "Let me try again to write it, this time without locks ok" 
+                                    << "If you don't see extra messages after this, I won this battle! :)"
+                                    << std::endl;
+
+                                    writeFile(ss.str());
+
+                                    I_Won_This_Battle_Yes_Or_No = true;
+                                }
+                                catch(std::exception& e){
+                                    err << "We can't do this file writing ok. "
+                                    << std::endl << "Here is our give up message: '" << e.what() << "'"
+                                    << std::endl;
+
+                                    I_Won_This_Battle_Yes_Or_No = false;
+                                }
+
+                                if(I_Won_This_Battle_Yes_Or_No){
+                                    out << "I won this battle u loser filesystem, we will meet again." << std::endl;
+                                }else{
+                                    err << "I will win next time u loser filesystem." << std::endl;
+                                }
                             }
                         }   
                     }
@@ -4468,15 +4633,15 @@ namespace MXPSQL{
 
 
         template<typename StringType>
-        bool MSLedit<StringType>::stupidSimpleSummingCompare(std::string mystr){
+        bool MSLedit<StringType>::stupidSimpleSummingCompare(std::string mystr, size_t* thischksum, size_t* otherchksum){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
-            return compareStringSSS(getText(false, -1, -1), mystr);
+            return compareStringSSS(getText(false, -1, -1), mystr, thischksum, otherchksum);
         }
 
         template<typename StringType>
-        bool MSLedit<StringType>::stupidSimpleSummingCompare(MSLedit<StringType>& miss){
+        bool MSLedit<StringType>::stupidSimpleSummingCompare(MSLedit<StringType>& miss, size_t* thischksum, size_t* otherchksum){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
-            return stupidSimpleSummingCompare(miss.getText(false, -1, -1));
+            return stupidSimpleSummingCompare(miss.getText(false, -1, -1), thischksum, otherchksum);
         }
 
         template<typename StringType>

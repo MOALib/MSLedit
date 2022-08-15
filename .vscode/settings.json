@@ -51,6 +51,10 @@
         "functional": "cpp",
         "cstring": "cpp",
         "cstddef": "cpp",
-        "cstdarg": "cpp"
+        "cstdarg": "cpp",
+        "stddef.h": "c",
+        "bitset": "cpp",
+        "numeric": "cpp",
+        "regex": "cpp"
     }
 }
