@@ -117,6 +117,9 @@ namespace MXPSQL{
             public: // again for fun :)
             /* None, at all! none_t */
 
+            public: // typedef
+            typedef std::vector<StringType> vec_type;
+
             public: // codes
             /**
              * @brief Standardized success exit code, for future proofing
@@ -524,13 +527,12 @@ namespace MXPSQL{
              * 
              * It is called that because it uses stupid summing (and xor dependent on position) of char to size_t
              * 
+             * Not best checksum ok
              * 
-             * How does it work.
              * 
-             * 1. Get character and current position
-             * 2. Add the character to a variable
-             * 3. Apply XOR based on the position
-             * 4. Repeat until it is done
+             * How it works.
+             * 
+             * - I am not going to tell you, see it for your self
              * 
              * @param c1 string 1
              * @param c2 string 2
@@ -543,6 +545,9 @@ namespace MXPSQL{
             bool compareStringSSS(std::string c1, std::string c2, size_t* out1, size_t* out2){
                 bool simplesum_status = true;
                 {
+                    static uint32_t inversion = 0xFFFFFFFFu; // inversion magick
+                    static uint32_t magic = 0xFF; // magick number
+
                     std::istringstream in_cmp_1(c1);
                     std::istringstream in_cmp_2(c2);
 
@@ -557,14 +562,16 @@ namespace MXPSQL{
                     char ch2 = 0;
 
                     while(in_cmp_1.get(ch1)){
-                        size_t p = ch1 + in1_pos;
-                        simplesum_1 += p;
+                        size_t p = ((((ch1 << in1_pos) ^ ch1) & magic) << simplesum_1); // bitwise shift character by istringstream position, then xor by character and then do "AND" by 0xFF (magic) and then bitwise shift by the current calculated checksum
+                        simplesum_1 += p; // append
+                        simplesum_1 ^= inversion; // bit inversion
                         in1_pos++;
                     }
                     
                     while(in_cmp_2.get(ch2)){
-                        size_t p = ch2 + in2_pos;
-                        simplesum_2 += p;
+                        size_t p = ((((ch2 << in2_pos) ^ ch2) & magic) << simplesum_2); // bitwise shift character by istringstream position, then xor by character and then do "AND" by 0xFF (magic) and then bitwise shift by the current calculated checksum
+                        simplesum_2 += p; // append
+                        simplesum_1 ^= inversion; // bit inversion
                         in2_pos++;
                     }
 
@@ -1120,7 +1127,7 @@ namespace MXPSQL{
              * @brief The internal buffer
              * 
              */
-            std::vector<std::string> buffer;
+            vec_type buffer;
             /**
              * @brief The last file that is opened/writtened
              * 
@@ -1171,7 +1178,7 @@ namespace MXPSQL{
              * Arguments for handlers: this instance, begin, args, arglen, out, input, error
              * 
              */
-            mutable std::function<int(MSLedit<StringType>&, std::string, std::vector<std::string>, size_t, std::ostream&, std::istream&, std::ostream&)> replBeginHandler;
+            mutable std::function<int(MSLedit<StringType>&, std::string, MSLedit<StringType>::vec_type, size_t, std::ostream&, std::istream&, std::ostream&)> replBeginHandler;
             /**
              * @brief Hook this up to display extra info on the help screen
              * 
@@ -1218,7 +1225,7 @@ namespace MXPSQL{
              * 
              * @param buffer the vector of strings (buffer)
              */
-            MSLedit(std::vector<std::string> buffer);
+            MSLedit(MSLedit<StringType>::vec_type buffer);
             /**
              * @brief Construct a new MSLedit object from an initializer list of strings
              * 
@@ -1326,15 +1333,15 @@ namespace MXPSQL{
             /**
              * @brief Obtain iterator from buffer
              * 
-             * @return std::vector<std::string>::iterator iterator
+             * @return MSLedit<StringType>::vec_type::iterator iterator
              */
-            std::vector<std::string>::iterator getIterator();
+            typename MSLedit<StringType>::vec_type::iterator getIterator();
             /**
              * @brief Get the end marker of the iterator
              * 
-             * @return std::vector<std::string>::iterator ending point
+             * @return MSLedit<StringType>::vec_type::iterator ending point
              */
-            std::vector<std::string>::iterator getIteratorEnd();
+            typename MSLedit<StringType>::vec_type::iterator getIteratorEnd();
 
             /**
              * @brief Open a file for content
@@ -1498,13 +1505,13 @@ namespace MXPSQL{
              * 
              * @param buffer the string buffer to set the internal buffer to
              */
-            void setBuffer(std::vector<std::string> buffer);
+            void setBuffer(MSLedit<StringType>::vec_type buffer);
             /**
              * @brief Get the internal buffer as a vector of string
              * 
-             * @return std::vector<std::string> the internal buffer as a vector of string
+             * @return MSLedit<StringType>::vec_type the internal buffer as a vector of string
              */
-            std::vector<std::string> getBuffer();
+            MSLedit<StringType>::vec_type getBuffer();
             /**
              * @brief Set the internal buffer from a vector of characters
              * 
@@ -1929,16 +1936,16 @@ namespace MXPSQL{
              * @brief Tokenize a string by a character
              * 
              * @param delimiter the delimiter
-             * @return std::vector<std::string> the tokenized string
+             * @return MSLedit<StringType>::vec_type the tokenized string
              */
-            std::vector<std::string> split(char delimiter);
+            MSLedit<StringType>::vec_type split(char delimiter);
             /**
              * @brief Tokenize a string by a string
              * 
              * @param delimiter the delimiter
-             * @return std::vector<std::string> the tokenized string
+             * @return MSLedit<StringType>::vec_type the tokenized string
              */
-            std::vector<std::string> split(std::string delimiter);
+            MSLedit<StringType>::vec_type split(std::string delimiter);
 
             /**
              * @brief Get a substring to the end
@@ -2377,12 +2384,12 @@ namespace MXPSQL{
         MSLedit<StringType>::MSLedit(const char* ccstr) : MSLedit(std::string(ccstr)) {}
 
         template<typename StringType>
-        MSLedit<StringType>::MSLedit(std::vector<std::string> buffer) : MSLedit() {
+        MSLedit<StringType>::MSLedit(MSLedit<StringType>::vec_type buffer) : MSLedit() {
             setBuffer(buffer);
         }
 
         template<typename StringType>
-        MSLedit<StringType>::MSLedit(std::initializer_list<std::string> ilbuf) : MSLedit(std::vector<std::string>(ilbuf)) {}
+        MSLedit<StringType>::MSLedit(std::initializer_list<std::string> ilbuf) : MSLedit(MSLedit<StringType>::vec_type(ilbuf)) {}
 
         template<typename StringType>
         MSLedit<StringType>::MSLedit(std::vector<char> cbuffer) : MSLedit(){
@@ -2505,12 +2512,12 @@ namespace MXPSQL{
 
 
         template<typename StringType>
-        std::vector<std::string>::iterator MSLedit<StringType>::getIterator(){
+        typename MSLedit<StringType>::vec_type::iterator MSLedit<StringType>::getIterator(){
             return buffer.begin();
         }
 
         template<typename StringType>
-        std::vector<std::string>::iterator MSLedit<StringType>::getIteratorEnd(){
+        typename MSLedit<StringType>::vec_type::iterator MSLedit<StringType>::getIteratorEnd(){
             return buffer.end();
         }
 
@@ -2898,7 +2905,7 @@ namespace MXPSQL{
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::istringstream iss(text);
             std::string token;
-            std::vector<std::string> vectr;
+            MSLedit<StringType>::vec_type vectr;
 
             while(std::getline(iss, token, '\n')){
                 vectr.push_back(token);
@@ -2912,7 +2919,7 @@ namespace MXPSQL{
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::stringstream ss;
             std::string str = "";
-            std::vector<std::string> nw(buffer);
+            typename MSLedit<StringType>::vec_type nw(buffer);
             size_t lsize = lineNums();
 
             if(begin > end){
@@ -3024,9 +3031,9 @@ namespace MXPSQL{
 
 
         template<typename StringType>
-        void MSLedit<StringType>::setBuffer(std::vector<std::string> buffer){
+        void MSLedit<StringType>::setBuffer(MSLedit<StringType>::vec_type buffer){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
-            std::vector<std::string> vectr(buffer);
+            MSLedit<StringType>::vec_type vectr(buffer);
             std::string tmpbuf;
             this->buffer.clear();
             {
@@ -3047,7 +3054,7 @@ namespace MXPSQL{
 
 
         template<typename StringType>
-        std::vector<std::string> MSLedit<StringType>::getBuffer(){
+        typename MSLedit<StringType>::vec_type MSLedit<StringType>::getBuffer(){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return buffer;
         }
@@ -3126,7 +3133,7 @@ namespace MXPSQL{
                     ss << "\t\"StrArray\": [" << std::endl;
 
                     {
-                        std::vector<std::string> Stringies = getBuffer();
+                        MSLedit<StringType>::vec_type Stringies = getBuffer();
                         for(size_t i = 0; i < Stringies.size(); i++){
                             std::string Stringy = Stringies.at(i);
                             ss << "\t\t\"" << Stringy << "\"";
@@ -3163,7 +3170,7 @@ namespace MXPSQL{
                     ss << "StrArray: " << std::endl;
 
                     {
-                        std::vector<std::string> Stringies = getBuffer();
+                        MSLedit<StringType>::vec_type Stringies = getBuffer();
                         for(size_t i = 0; i < Stringies.size(); i++){
                             std::string Stringy = Stringies.at(i);
                             ss << "\t\"" << Stringy << "\"" << std::endl;
@@ -3207,7 +3214,7 @@ namespace MXPSQL{
         void MSLedit<StringType>::insertAtLine(int linenum, std::string line){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             if(linenum > (int) lineNums() || linenum < 1) throw std::out_of_range("Attempting to edit beyond array bound");
-            std::vector<std::string> tmpbuffer(buffer);
+            MSLedit<StringType>::vec_type tmpbuffer(buffer);
             std::istringstream iss(line);
             std::string token;
             for(auto it = tmpbuffer.begin() + linenum - 1; std::getline(iss, token, '\n'); it++){
@@ -3234,7 +3241,7 @@ namespace MXPSQL{
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::vector<std::pair<size_t, size_t>> poses;
             updateText();
-            std::vector<std::string> vectr(buffer);
+            MSLedit<StringType>::vec_type vectr(buffer);
 
             for(size_t i = begin_line-1, c = 0; i < vectr.size() && (count == std::string::npos || c < count); i++){
                 std::string line = vectr.at(i);
@@ -3266,7 +3273,7 @@ namespace MXPSQL{
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::vector<std::pair<size_t, size_t>> poses;
             updateText();
-            std::vector<std::string> vectr(buffer);
+            MSLedit<StringType>::vec_type vectr(buffer);
 
             std::regex regex_str_expr(regex);
 
@@ -3592,8 +3599,8 @@ namespace MXPSQL{
 
 
         template<typename StringType>
-        std::vector<std::string> MSLedit<StringType>::split(char delimiter){
-            std::vector<std::string> misses;
+        typename MSLedit<StringType>::vec_type MSLedit<StringType>::split(char delimiter){
+            MSLedit<StringType>::vec_type misses;
             std::string t = str();
             std::string token;
             std::istringstream iss(t);
@@ -3602,8 +3609,8 @@ namespace MXPSQL{
         }
 
         template<typename StringType>
-        std::vector<std::string> MSLedit<StringType>::split(std::string delimiter){
-            std::vector<std::string> misses;
+        typename MSLedit<StringType>::vec_type MSLedit<StringType>::split(std::string delimiter){
+            MSLedit<StringType>::vec_type misses;
             std::string t = str();
             size_t start = 0;
             size_t end = t.find(delimiter);
@@ -3741,7 +3748,7 @@ namespace MXPSQL{
             int status = MSLedit::Status_Success;
             bool run = true;
             std::string l = "";
-            std::vector<std::string> ls;
+            MSLedit<StringType>::vec_type ls;
 
             {
                 bool allowBanner = true;
@@ -3752,7 +3759,7 @@ namespace MXPSQL{
 
                 if(allowBanner){
                     size_t s = 0;
-                    std::vector<std::string> banners{
+                    MSLedit<StringType>::vec_type banners{
                         "MSLedit", 
                         "Written by MXPSQL", 
                         "Library licensed to you under the MIT License",
@@ -3851,7 +3858,7 @@ namespace MXPSQL{
 
                     begin = ls.at(0);
                     size_t arglen = ls.size() - 1;
-                    std::vector<std::string> args(ls);
+                    MSLedit<StringType>::vec_type args(ls);
                     args.erase(args.begin());
                     
                     // # and <# are comments
@@ -3996,7 +4003,7 @@ namespace MXPSQL{
                         }
                         else{
                             try{
-                                std::vector<std::string> slicedargs(args);
+                                MSLedit<StringType>::vec_type slicedargs(args);
                                 int line = stoi(slicedargs[0]);
                                 slicedargs.erase(slicedargs.begin());
                                 std::stringstream ss;
@@ -4026,85 +4033,99 @@ namespace MXPSQL{
                         }
                     }
                     else if(begin == "ae" || begin == "appendEdit"){
-                        if(arglen < 2){
-                            err << "Missing arguments to '" << begin << "'" << std::endl;
-                        }
-                        else {
-                            // drop down to a smarted (but still dumb) editor
-                            std::string eofStr = "";
-                            std::stringstream apss; // don't even remove the 'p' or you get something bad. apps means APennd StringStream. Keeps mistyping it to apps
-                            int lineAppend = 0;
-                            try{
-                                {
-                                    std::vector<std::string> slicedargs(args);
-                                    lineAppend = stoi(slicedargs[0]);
-                                    slicedargs.erase(slicedargs.begin());
-                                    std::stringstream ss;
-                                    for(size_t i = 0; i < slicedargs.size(); i++){
-                                        if((i + 1) >= slicedargs.size()){
-                                            ss << slicedargs[i];
+                        static auto aeImpl = [this](std::string begin, std::vector<std::string> args, size_t arglen,  std::ostream& out, std::istream& in, std::ostream& err, std::function<bool(std::istream&, std::string&)> getlineInputHandler, bool is_term_supported,  bool backEdit) -> void {
+                            if(arglen < 2){
+                                err << "Missing arguments to '" << begin << "'" << std::endl;
+                            }
+                            else {
+                                // drop down to a smarted (but still dumb) editor
+                                std::string eofStr = ".";
+                                std::ostringstream apss;
+                                int lineAppend = 0;
+                                try{
+                                    {
+                                        ((void)backEdit); // not used rn
+
+                                        MSLedit<StringType>::vec_type slicedargs(args);
+                                        lineAppend = stoi(slicedargs[0]);
+                                        this->appendAtLine(lineAppend, "");
+                                        slicedargs.erase(slicedargs.begin());
+                                        std::stringstream ss;
+                                        for(size_t i = 0; i < slicedargs.size(); i++){
+                                            if((i + 1) >= slicedargs.size()){
+                                                ss << slicedargs[i];
+                                            }
+                                            else{
+                                                ss << slicedargs[i] << " ";
+                                            }
+                                        }
+                                        eofStr = ss.str();
+                                    }
+
+                                    bool iRun = true;
+                                    apss << std::endl;
+
+                                    {
+                                        std::ostringstream bannerfs;
+
+                                        MSLedit<StringType>::vec_type BannersOk{"We are now going to the now better (but still dumb) editing service. " ,
+                                        "Type the EOF string (exactly, no spaces or anything funny) to exit. ",
+                                        "Your EOF string is: '" + eofStr + "'",
+                                        "Oh, your EOF string '" + eofStr + "' is not included.",
+                                        "Example: '" + eofStr + "'",
+                                        "There is a newline inserted before the edited text.",
+                                        "That is it, now go your editing!"};
+
+                                        size_t bline = 0;
+                                        for(const std::string& bnr : BannersOk){
+                                            size_t s2 = bnr.length() + 5;
+                                            if(s2 > bline){
+                                                bline = s2;
+                                            }
+
+                                            bannerfs << bnr << std::endl;
+                                        }
+
+                                        out << bannerfs.str() << std::string(bline+5, '=') << std::endl;
+                                    }
+
+
+                                    while(iRun){
+                                        std::string line = "";
+                                        if(!getlineInputHandler(in, line)){
+                                            if(is_term_supported) err << Coloring::Red;
+                                            err << "What is even going on with your input!!!" << std::endl;
+                                            if(is_term_supported) err << Coloring::Normal;
+                                            iRun = false;
+                                            break;
+                                        }
+                                        else if(line == eofStr){
+                                            out << "EOF Done! Ok we return back!" << std::endl;
+                                            iRun = false;
                                         }
                                         else{
-                                            ss << slicedargs[i] << " ";
+                                            apss << line << std::endl;
                                         }
                                     }
-                                    eofStr = ss.str();
+
+                                    this->appendAtLine(lineAppend, apss.str());
                                 }
-
-                                bool iRun = true;
-                                apss << std::endl;
-
-                                std::vector<std::string> BannersOk{"We are now going to the now better (but still dumb) editing service. " ,
-                                "Type the EOF string (exactly, no spaces or anything funny) to exit. ",
-                                "Your EOF string is: '" + eofStr + "'",
-                                "Oh, your EOF string '" + eofStr + "' is not included.",
-                                "Example: '" + eofStr + "'",
-                                "There is a newline inserted before the edited text.",
-                                "That is it, now go your editing!"};
-
-                                size_t bline = 0;
-                                for(const std::string& bnr : BannersOk){
-                                    size_t s2 = bnr.length() + 5;
-                                    if(s2 > bline){
-                                        bline = s2;
-                                    }
+                                catch(std::invalid_argument& ia){
+                                    err << "Second argument provided is invalid, message: '" << ia.what() << "'" <<
+                                    std::endl << ". If you see stoi on the message, that second input is wrong" << std::endl;
                                 }
-
-                                out << std::string(bline+5, '=') << std::endl;
-
-                                while(iRun){
-                                    std::string line = "";
-                                    if(!getlineInputHandler(in, line)){
-                                        if(is_term_supported) err << Coloring::Red;
-                                        err << "What is even going on with your input!!!" << std::endl;
-                                        if(is_term_supported) err << Coloring::Normal;
-                                        iRun = false;
-                                        break;
-                                    }
-                                    else if(line == eofStr){
-                                        out << "EOF Done! Ok we return back!" << std::endl;
-                                        iRun = false;
-                                    }
-                                    else{
-                                        apss << line << std::endl;
-                                    }
+                                catch(std::out_of_range& ooa){
+                                    err << "Second argument is out of range or some problem occured, did you try to edit beyond the limit? message: " << ooa.what() << "'" << std::endl;
                                 }
+                                catch(std::runtime_error& re){
+                                    err << "An error had occured."
+                                    << std::endl << "Here is the message btw: '" << re.what() << "'"
+                                    << std::endl;
+                                }
+                            }
+                        };
 
-                                appendAtLine(lineAppend, apss.str());
-                            }
-                            catch(std::invalid_argument& ia){
-                                err << "Second argument provided is invalid, message: '" << ia.what() << "'" <<
-                                std::endl << ". If you see stoi on the message, that second input is wrong" << std::endl;
-                            }
-                            catch(std::out_of_range& ooa){
-                                err << "Second argument is out of range or some problem occured, did you try to edit beyond the limit? message: " << ooa.what() << "'" << std::endl;
-                            }
-                            catch(std::runtime_error& re){
-                                err << "An error had occured."
-                                << std::endl << "Here is the message btw: '" << re.what() << "'"
-                                << std::endl;
-                            }
-                        }
+                        aeImpl(begin, args, arglen,  out, in, err, getlineInputHandler, is_term_supported,  false);
                     }
                     else if(begin == "ial" || begin == "insertAtLine"){
                         if(arglen < 2){
@@ -4112,7 +4133,7 @@ namespace MXPSQL{
                         }
                         else{
                             try{
-                                std::vector<std::string> slicedargs(args);
+                                MSLedit<StringType>::vec_type slicedargs(args);
                                 int line = stoi(slicedargs[0]);
                                 slicedargs.erase(slicedargs.begin());
                                 std::stringstream ss;
@@ -4147,7 +4168,7 @@ namespace MXPSQL{
                         }
                         else{
                             try{
-                                std::vector<std::string> slicedargs(args);
+                                MSLedit<StringType>::vec_type slicedargs(args);
                                 int line = stoi(slicedargs[0]);
                                 slicedargs.erase(slicedargs.begin());
 
@@ -4266,7 +4287,7 @@ namespace MXPSQL{
                         }
                         else{
                             try{
-                                std::vector<std::string> slicedargs(args);
+                                MSLedit<StringType>::vec_type slicedargs(args);
                                 int line = stoi(slicedargs[0]);
                                 slicedargs.erase(slicedargs.begin());
                                 std::stringstream ss;
@@ -4447,7 +4468,7 @@ namespace MXPSQL{
                             catch(std::runtime_error& re){
                                 int err_thing = 0;
                                 {
-                                    std::vector<std::string> tok;
+                                    MSLedit<StringType>::vec_type tok;
                                     {
                                         std::string token = "";
                                         std::istringstream iss(re.what());
