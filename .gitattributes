@@ -1,5 +1,0 @@
-# All files should use lf endings
-* text eol=lf 
-*.* text eol=lf
-.* text eol=lf
-.*/*

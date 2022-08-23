@@ -1,3 +1,0 @@
-# MSLedit development tools
-
-- PyCRC
