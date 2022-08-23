@@ -101,10 +101,12 @@ namespace MXPSQL{
         /**
          * @brief String builder and line editor. Base class for all variants.
          * 
+         * @tparam CharType the character like object to use for StringType
          * @tparam StringType a string-like object for manipulation
          * 
          * @details
          * 
+         * CharType something that is like the type char and wchar_t
          * StringType should be a string-like object which is based of std::basic_string or std::basic_string api compatible.
          * 
          * You can use rope for StringType if the API is compatible with std::basic_string
@@ -112,13 +114,18 @@ namespace MXPSQL{
          * @note This class has mutexes for almost all functions for thread safety (and possibly reeterant).
          * @warning Due to use of recursive_mutex for thread safety, this class may throw std::system_error, researching online shows that the mutex used here is hiding a bad design (but no, I will not replace that with wrapped functions becuase of big code). However, despite the thread safety checks, this class is not atomic.
          */
-        template<typename StringType>
+        template<typename CharType, typename StringType>
         class MSLedit{
             public: // again for fun :)
             /* None, at all! none_t */
 
             public: // typedef
-            typedef std::vector<StringType> vec_type;
+
+            template<typename type>
+            using container_type = std::vector<type>;
+
+            // typedef StringType<CharType> mystring_type;
+            typedef container_type<StringType> vec_type;
 
             public: // codes
             /**
@@ -1178,7 +1185,7 @@ namespace MXPSQL{
              * Arguments for handlers: this instance, begin, args, arglen, out, input, error
              * 
              */
-            mutable std::function<int(MSLedit<StringType>&, std::string, MSLedit<StringType>::vec_type, size_t, std::ostream&, std::istream&, std::ostream&)> replBeginHandler;
+            mutable std::function<int(MSLedit<CharType, StringType>&, std::string, MSLedit<CharType, StringType>::vec_type, size_t, std::ostream&, std::istream&, std::ostream&)> replBeginHandler;
             /**
              * @brief Hook this up to display extra info on the help screen
              * 
@@ -1195,13 +1202,13 @@ namespace MXPSQL{
              * 
              * @param ledit the other object
              */
-            MSLedit(MSLedit<StringType>& ledit);
+            MSLedit(MSLedit<CharType, StringType>& ledit);
             /**
              * @brief Construct a new MSLedit object by copying another object, but dynamically allocated
              * 
              * @param ledit the other dynamically allocated object
              */
-            MSLedit(MSLedit<StringType>* ledit);
+            MSLedit(MSLedit<CharType, StringType>* ledit);
             /**
              * @brief Construct a new MSLedit object from a string
              * 
@@ -1225,7 +1232,7 @@ namespace MXPSQL{
              * 
              * @param buffer the vector of strings (buffer)
              */
-            MSLedit(MSLedit<StringType>::vec_type buffer);
+            MSLedit(MSLedit<CharType, StringType>::vec_type buffer);
             /**
              * @brief Construct a new MSLedit object from an initializer list of strings
              * 
@@ -1261,19 +1268,19 @@ namespace MXPSQL{
              * 
              * @param other other instance
              */
-            void setInstance(MSLedit<StringType>& other);
+            void setInstance(MSLedit<CharType, StringType>& other);
             /**
              * @brief Set the Instance object to another MSLedit instance, constant edition
              * 
              * @param cother other instance, constant edition
              */
-            void setInstance(const MSLedit<StringType>& cother);
+            void setInstance(const MSLedit<CharType, StringType>& cother);
             /**
              * @brief Set the Instance object, pointer edition
              * 
              * @param other other instance, pointer edition
              */
-            void setInstance(MSLedit<StringType>* other);
+            void setInstance(MSLedit<CharType, StringType>* other);
 
             /**
              * @brief Line counts
@@ -1333,15 +1340,15 @@ namespace MXPSQL{
             /**
              * @brief Obtain iterator from buffer
              * 
-             * @return MSLedit<StringType>::vec_type::iterator iterator
+             * @return MSLedit<CharType, StringType>::vec_type::iterator iterator
              */
-            typename MSLedit<StringType>::vec_type::iterator getIterator();
+            typename MSLedit<CharType, StringType>::vec_type::iterator getIterator();
             /**
              * @brief Get the end marker of the iterator
              * 
-             * @return MSLedit<StringType>::vec_type::iterator ending point
+             * @return MSLedit<CharType, StringType>::vec_type::iterator ending point
              */
-            typename MSLedit<StringType>::vec_type::iterator getIteratorEnd();
+            typename MSLedit<CharType, StringType>::vec_type::iterator getIteratorEnd();
 
             /**
              * @brief Open a file for content
@@ -1430,7 +1437,7 @@ namespace MXPSQL{
              * 
              * @param other_miss_ledit_instance that other instance
              */
-            void setTextOfInstance(MSLedit<StringType>& other_miss_ledit_instance);
+            void setTextOfInstance(MSLedit<CharType, StringType>& other_miss_ledit_instance);
             /**
              * @brief Like setTextOfInstance, but swaps the content instead of copying
              * 
@@ -1438,7 +1445,7 @@ namespace MXPSQL{
              * 
              * @see setTextOfInstance
              */
-            void swap(MSLedit<StringType>& other_miss_ledit_instance);
+            void swap(MSLedit<CharType, StringType>& other_miss_ledit_instance);
             /**
              * @brief Set the internal buffer from a C-Style string
              * 
@@ -1505,13 +1512,13 @@ namespace MXPSQL{
              * 
              * @param buffer the string buffer to set the internal buffer to
              */
-            void setBuffer(MSLedit<StringType>::vec_type buffer);
+            void setBuffer(MSLedit<CharType, StringType>::vec_type buffer);
             /**
              * @brief Get the internal buffer as a vector of string
              * 
-             * @return MSLedit<StringType>::vec_type the internal buffer as a vector of string
+             * @return MSLedit<CharType, StringType>::vec_type the internal buffer as a vector of string
              */
-            MSLedit<StringType>::vec_type getBuffer();
+            MSLedit<CharType, StringType>::vec_type getBuffer();
             /**
              * @brief Set the internal buffer from a vector of characters
              * 
@@ -1936,16 +1943,16 @@ namespace MXPSQL{
              * @brief Tokenize a string by a character
              * 
              * @param delimiter the delimiter
-             * @return MSLedit<StringType>::vec_type the tokenized string
+             * @return MSLedit<CharType, StringType>::vec_type the tokenized string
              */
-            MSLedit<StringType>::vec_type split(char delimiter);
+            MSLedit<CharType, StringType>::vec_type split(char delimiter);
             /**
              * @brief Tokenize a string by a string
              * 
              * @param delimiter the delimiter
-             * @return MSLedit<StringType>::vec_type the tokenized string
+             * @return MSLedit<CharType, StringType>::vec_type the tokenized string
              */
-            MSLedit<StringType>::vec_type split(std::string delimiter);
+            MSLedit<CharType, StringType>::vec_type split(std::string delimiter);
 
             /**
              * @brief Get a substring to the end
@@ -2092,7 +2099,7 @@ namespace MXPSQL{
              * @param miss that other stupid instance
              * @return int the important thing is that if this returns 0, equal
              */
-            int compare(MSLedit<StringType>& miss);
+            int compare(MSLedit<CharType, StringType>& miss);
             /**
              * @brief Compare this class instance to a C-Style string
              * 
@@ -2133,7 +2140,7 @@ namespace MXPSQL{
              * 
              * @see compareStringSSS
              */
-            bool stupidSimpleSummingCompare(MSLedit<StringType>& miss, size_t* thischksum, size_t* otherchksum);
+            bool stupidSimpleSummingCompare(MSLedit<CharType, StringType>& miss, size_t* thischksum, size_t* otherchksum);
             /**
              * @brief Compare with MD5
              * 
@@ -2153,7 +2160,7 @@ namespace MXPSQL{
              * 
              * @see compareStringMD5
              */
-            bool md5Compare(MSLedit<StringType>& miss);
+            bool md5Compare(MSLedit<CharType, StringType>& miss);
             /**
              * @brief Compare with CRC32
              * 
@@ -2173,7 +2180,7 @@ namespace MXPSQL{
              * 
              * @see compareStringCRC32
              */
-            bool crc32Compare(MSLedit<StringType>& miss);
+            bool crc32Compare(MSLedit<CharType, StringType>& miss);
             /**
              * @brief Compare with SHA1
              * 
@@ -2193,7 +2200,7 @@ namespace MXPSQL{
              * 
              * @see compareStringSHA1
              */
-            bool sha1Compare(MSLedit<StringType>& miss);
+            bool sha1Compare(MSLedit<CharType, StringType>& miss);
 
             /**
              * @brief Am I empty?
@@ -2211,7 +2218,7 @@ namespace MXPSQL{
              * @return true equal
              * @return false no sad
              */
-            friend bool operator==(MSLedit<StringType>& miss, std::string& str) {return (miss.compare(str) == 0);}
+            friend bool operator==(MSLedit<CharType, StringType>& miss, std::string& str) {return (miss.compare(str) == 0);}
             /**
              * @brief Am not equal
              * 
@@ -2220,7 +2227,7 @@ namespace MXPSQL{
              * @return true ye me no equal
              * @return false no sad me equal
              */
-            friend bool operator!=(MSLedit<StringType>& miss, std::string& str) {return !(miss == str);}
+            friend bool operator!=(MSLedit<CharType, StringType>& miss, std::string& str) {return !(miss == str);}
             /**
              * @brief Am equal
              * 
@@ -2229,7 +2236,7 @@ namespace MXPSQL{
              * @return true equal
              * @return false no sad
              */
-            friend bool operator==(MSLedit<StringType>& miss, MSLedit<StringType>& miss2) {
+            friend bool operator==(MSLedit<CharType, StringType>& miss, MSLedit<CharType, StringType>& miss2) {
                 return (
                     ((miss.compare(miss2)) == 0) &&
                     (miss.getConfig() == miss2.getConfig())
@@ -2243,7 +2250,7 @@ namespace MXPSQL{
              * @return true ye me no equal
              * @return false no sad me equal
              */
-            friend bool operator!=(MSLedit<StringType>& miss, MSLedit<StringType>& miss2) {return !(miss == miss2);}
+            friend bool operator!=(MSLedit<CharType, StringType>& miss, MSLedit<CharType, StringType>& miss2) {return !(miss == miss2);}
             /**
              * @brief Am equal
              * 
@@ -2252,7 +2259,7 @@ namespace MXPSQL{
              * @return true equal
              * @return false no sad
              */
-            friend bool operator==(MSLedit<StringType>& miss, char* cstr) {return (miss.compare(cstr) == 0);}
+            friend bool operator==(MSLedit<CharType, StringType>& miss, char* cstr) {return (miss.compare(cstr) == 0);}
             /**
              * @brief Am not equal
              * 
@@ -2261,7 +2268,7 @@ namespace MXPSQL{
              * @return true ye me no equal
              * @return false no sad me equal
              */
-            friend bool operator!=(MSLedit<StringType>& miss, char* cstr) {return !(miss == cstr);};
+            friend bool operator!=(MSLedit<CharType, StringType>& miss, char* cstr) {return !(miss == cstr);};
             /**
              * @brief Am equal
              * 
@@ -2270,7 +2277,7 @@ namespace MXPSQL{
              * @return true equal
              * @return false no sad
              */
-            friend bool operator==(MSLedit<StringType>& miss, const char* ccstr) {return (miss.compare(ccstr) == 0);};
+            friend bool operator==(MSLedit<CharType, StringType>& miss, const char* ccstr) {return (miss.compare(ccstr) == 0);};
             /**
              * @brief Am not equal
              * 
@@ -2279,7 +2286,7 @@ namespace MXPSQL{
              * @return true ye me no equal
              * @return false no sad me equal
              */
-            friend bool operator!=(MSLedit<StringType>& miss, const char* ccstr) {return !(miss == ccstr);}
+            friend bool operator!=(MSLedit<CharType, StringType>& miss, const char* ccstr) {return !(miss == ccstr);}
 
             /**
              * @brief Output the formatted content of an instance to the stream
@@ -2288,7 +2295,7 @@ namespace MXPSQL{
              * @param miss the said instance
              * @return std::ostream& os
              */
-            template<typename StringType_T> friend std::ostream& operator<<(std::ostream& os, MSLedit<StringType_T>& miss);
+            template<typename CharType_T, typename StringType_T> friend std::ostream& operator<<(std::ostream& os, MSLedit<CharType_T, StringType_T>& miss);
             /**
              * @brief Set the content of an instance from the stream
              * 
@@ -2296,7 +2303,7 @@ namespace MXPSQL{
              * @param miss the said instance
              * @return std::istream& is
              */
-            template<typename StringType_T>friend std::istream& operator>>(std::istream& is, MSLedit<StringType_T>& miss);
+            template<typename CharType_T, typename StringType_T>friend std::istream& operator>>(std::istream& is, MSLedit<CharType_T, StringType_T>& miss);
 
             /**
              * @brief Get a character from an index
@@ -2312,18 +2319,18 @@ namespace MXPSQL{
              * @brief No self assignment errors
              * 
              * @param miss that one
-             * @return MSLedit<StringType>& the other new one
+             * @return MSLedit<CharType, StringType>& the other new one
              */
-            MSLedit<StringType>& operator=(MSLedit<StringType>& miss){
-                return operator=(const_cast<const MSLedit<StringType>&>(miss));
+            MSLedit<CharType, StringType>& operator=(MSLedit<CharType, StringType>& miss){
+                return operator=(const_cast<const MSLedit<CharType, StringType>&>(miss));
             }
             /**
              * @brief Also no more self assignment errors
              * 
              * @param cmiss that constant one
-             * @return MSLedit<StringType>& the other new one
+             * @return MSLedit<CharType, StringType>& the other new one
              */
-            MSLedit<StringType>& operator=(const MSLedit<StringType>& cmiss){
+            MSLedit<CharType, StringType>& operator=(const MSLedit<CharType, StringType>& cmiss){
                 if(this != &cmiss) {
                     setInstance(cmiss);
                 }
@@ -2334,9 +2341,9 @@ namespace MXPSQL{
              * @brief Also no more self assignment errors, pointer edition
              * 
              * @param miss that one, pointer edition
-             * @return MSLedit<StringType>& the other boring old same new one
+             * @return MSLedit<CharType, StringType>& the other boring old same new one
              */
-            MSLedit<StringType>& operator=(MSLedit<StringType>* miss){
+            MSLedit<CharType, StringType>& operator=(MSLedit<CharType, StringType>* miss){
                 return operator=(*miss);
             }
 
@@ -2346,7 +2353,7 @@ namespace MXPSQL{
              * @param ccstr the string
              * @return MSLedit the instance that was rudely created with a stringstream
              *\/
-            friend MSLedit<StringType> operator""_MSLedit(const char* ccstr){
+            friend MSLedit<CharType, StringType> operator""_MSLedit(const char* ccstr){
                 std::stringstream ss;
                 ss << ccstr;
                 MSLedit missledit(ss.str());
@@ -2356,8 +2363,8 @@ namespace MXPSQL{
 
         #ifndef MXPSQL_MSLedit_No_Implementation
 
-        template<typename StringType>
-        MSLedit<StringType>::MSLedit(){
+        template<typename CharType, typename StringType>
+        MSLedit<CharType, StringType>::MSLedit(){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             setKey(nprompt, "MSLedit> ");
             setKey(nosystem, "false");
@@ -2365,43 +2372,43 @@ namespace MXPSQL{
             setKey(nocolor, "false");
         }
 
-        template<typename StringType>
-        MSLedit<StringType>::MSLedit(MSLedit<StringType>& ledit) : MSLedit() {
+        template<typename CharType, typename StringType>
+        MSLedit<CharType, StringType>::MSLedit(MSLedit<CharType, StringType>& ledit) : MSLedit() {
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             setInstance(ledit);
         }
 
-        template<typename StringType>
-        MSLedit<StringType>::MSLedit(MSLedit<StringType>* ledit) : MSLedit(*ledit) {}
+        template<typename CharType, typename StringType>
+        MSLedit<CharType, StringType>::MSLedit(MSLedit<CharType, StringType>* ledit) : MSLedit(*ledit) {}
 
-        template<typename StringType>
-        MSLedit<StringType>::MSLedit(std::string content) : MSLedit(false, content) {}
+        template<typename CharType, typename StringType>
+        MSLedit<CharType, StringType>::MSLedit(std::string content) : MSLedit(false, content) {}
 
-        template<typename StringType>
-        MSLedit<StringType>::MSLedit(char* cstr) : MSLedit(std::string(cstr)) {}
+        template<typename CharType, typename StringType>
+        MSLedit<CharType, StringType>::MSLedit(char* cstr) : MSLedit(std::string(cstr)) {}
 
-        template<typename StringType>
-        MSLedit<StringType>::MSLedit(const char* ccstr) : MSLedit(std::string(ccstr)) {}
+        template<typename CharType, typename StringType>
+        MSLedit<CharType, StringType>::MSLedit(const char* ccstr) : MSLedit(std::string(ccstr)) {}
 
-        template<typename StringType>
-        MSLedit<StringType>::MSLedit(MSLedit<StringType>::vec_type buffer) : MSLedit() {
+        template<typename CharType, typename StringType>
+        MSLedit<CharType, StringType>::MSLedit(MSLedit<CharType, StringType>::vec_type buffer) : MSLedit() {
             setBuffer(buffer);
         }
 
-        template<typename StringType>
-        MSLedit<StringType>::MSLedit(std::initializer_list<std::string> ilbuf) : MSLedit(MSLedit<StringType>::vec_type(ilbuf)) {}
+        template<typename CharType, typename StringType>
+        MSLedit<CharType, StringType>::MSLedit(std::initializer_list<std::string> ilbuf) : MSLedit(MSLedit<CharType, StringType>::vec_type(ilbuf)) {}
 
-        template<typename StringType>
-        MSLedit<StringType>::MSLedit(std::vector<char> cbuffer) : MSLedit(){
+        template<typename CharType, typename StringType>
+        MSLedit<CharType, StringType>::MSLedit(std::vector<char> cbuffer) : MSLedit(){
             std::string s(cbuffer.begin(), cbuffer.end());
             setText(s);
         }
 
-        template<typename StringType>
-        MSLedit<StringType>::MSLedit(std::initializer_list<char> cilbuf) : MSLedit(std::vector<char>(cilbuf)) {}
+        template<typename CharType, typename StringType>
+        MSLedit<CharType, StringType>::MSLedit(std::initializer_list<char> cilbuf) : MSLedit(std::vector<char>(cilbuf)) {}
 
-        template<typename StringType>
-        MSLedit<StringType>::MSLedit(bool fileinsteadofcontent, std::string obj) : MSLedit() {
+        template<typename CharType, typename StringType>
+        MSLedit<CharType, StringType>::MSLedit(bool fileinsteadofcontent, std::string obj) : MSLedit() {
             if(fileinsteadofcontent){
                 readFile(obj);
             }
@@ -2410,42 +2417,42 @@ namespace MXPSQL{
             }
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::setInstance(MSLedit<StringType>& other){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::setInstance(MSLedit<CharType, StringType>& other){
             this->setText(other.str());
             this->setConfig(other.getConfig());
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::setInstance(const MSLedit<StringType>& cother){
-            this->setInstance(const_cast<MSLedit<StringType>&>(cother));
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::setInstance(const MSLedit<CharType, StringType>& cother){
+            this->setInstance(const_cast<MSLedit<CharType, StringType>&>(cother));
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::setInstance(MSLedit<StringType>* other){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::setInstance(MSLedit<CharType, StringType>* other){
             this->setInstance(*other);
         }
 
-        template<typename StringType>
-        size_t MSLedit<StringType>::lineNums(){
+        template<typename CharType, typename StringType>
+        size_t MSLedit<CharType, StringType>::lineNums(){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return buffer.size();
         }
 
-        template<typename StringType>
-        size_t MSLedit<StringType>::length(){
+        template<typename CharType, typename StringType>
+        size_t MSLedit<CharType, StringType>::length(){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return str().length();
         }
 
-        template<typename StringType>
-        size_t MSLedit<StringType>::size(){
+        template<typename CharType, typename StringType>
+        size_t MSLedit<CharType, StringType>::size(){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return str().size();
         }
 
-        template<typename StringType>
-        std::string MSLedit<StringType>::stringAtLine(size_t line){
+        template<typename CharType, typename StringType>
+        std::string MSLedit<CharType, StringType>::stringAtLine(size_t line){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             if(line > lineNums() || line < 1){
                 throw std::out_of_range("Attempting to access beyond array bounds");
@@ -2454,8 +2461,8 @@ namespace MXPSQL{
             return buffer.at(line-1);
         }
 
-        template<typename StringType>
-        std::pair<size_t, size_t> MSLedit<StringType>::getGridIndexFromStringIndex(size_t strindex){
+        template<typename CharType, typename StringType>
+        std::pair<size_t, size_t> MSLedit<CharType, StringType>::getGridIndexFromStringIndex(size_t strindex){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             size_t line = 1;
             size_t index = 1;
@@ -2478,8 +2485,8 @@ namespace MXPSQL{
             return std::make_pair(line, index+1);
         }
 
-        template<typename StringType>
-        char MSLedit<StringType>::charAtPosition(size_t index){
+        template<typename CharType, typename StringType>
+        char MSLedit<CharType, StringType>::charAtPosition(size_t index){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::string t = str();
             if(index < 1 || index > length()){
@@ -2489,8 +2496,8 @@ namespace MXPSQL{
             return t.at(index);
         }
 
-        template<typename StringType>
-        char MSLedit<StringType>::charAtGrid(size_t line, size_t index){
+        template<typename CharType, typename StringType>
+        char MSLedit<CharType, StringType>::charAtGrid(size_t line, size_t index){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             char c = ' ';
             if((line < 1 || line > lineNums())){
@@ -2511,19 +2518,19 @@ namespace MXPSQL{
         }
 
 
-        template<typename StringType>
-        typename MSLedit<StringType>::vec_type::iterator MSLedit<StringType>::getIterator(){
+        template<typename CharType, typename StringType>
+        typename MSLedit<CharType, StringType>::vec_type::iterator MSLedit<CharType, StringType>::getIterator(){
             return buffer.begin();
         }
 
-        template<typename StringType>
-        typename MSLedit<StringType>::vec_type::iterator MSLedit<StringType>::getIteratorEnd(){
+        template<typename CharType, typename StringType>
+        typename MSLedit<CharType, StringType>::vec_type::iterator MSLedit<CharType, StringType>::getIteratorEnd(){
             return buffer.end();
         }
 
 
-        template<typename StringType>
-        void MSLedit<StringType>::readFile(std::string path){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::readFile(std::string path){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             if(path.empty() || path.find_first_not_of(' ') == std::string::npos || path.length() < 1) path = file;
             if(path.empty() || path.find_first_not_of(' ') == std::string::npos || path.length() < 1) throw std::logic_error("File not set");
@@ -2543,8 +2550,8 @@ namespace MXPSQL{
             }
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::writeFile(std::string path){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::writeFile(std::string path){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             if(path.empty() || path.find_first_not_of(' ') == std::string::npos || path.length() < 1) path = file;
             if(path.empty() || path.find_first_not_of(' ') == std::string::npos || path.length() < 1) throw std::logic_error("File not set");
@@ -2562,8 +2569,8 @@ namespace MXPSQL{
             }
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::writeFileLocked(std::string path){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::writeFileLocked(std::string path){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::string tmpfile = "";
             bool isTaken = true;
@@ -2900,12 +2907,12 @@ namespace MXPSQL{
         }
 
 
-        template<typename StringType>
-        void MSLedit<StringType>::setText(std::string text){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::setText(std::string text){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::istringstream iss(text);
             std::string token;
-            MSLedit<StringType>::vec_type vectr;
+            MSLedit<CharType, StringType>::vec_type vectr;
 
             while(std::getline(iss, token, '\n')){
                 vectr.push_back(token);
@@ -2914,12 +2921,12 @@ namespace MXPSQL{
             setBuffer(vectr);
         }
 
-        template<typename StringType>
-        std::string MSLedit<StringType>::getText(bool formatted, long int begin, long int end){
+        template<typename CharType, typename StringType>
+        std::string MSLedit<CharType, StringType>::getText(bool formatted, long int begin, long int end){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::stringstream ss;
             std::string str = "";
-            typename MSLedit<StringType>::vec_type nw(buffer);
+            typename MSLedit<CharType, StringType>::vec_type nw(buffer);
             size_t lsize = lineNums();
 
             if(begin > end){
@@ -2958,14 +2965,14 @@ namespace MXPSQL{
         }
 
 
-        template<typename StringType>
-        void MSLedit<StringType>::setTextOfInstance(MSLedit<StringType>& other_miss_ledit_instance){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::setTextOfInstance(MSLedit<CharType, StringType>& other_miss_ledit_instance){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             setText(other_miss_ledit_instance.str());
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::swap(MSLedit<StringType>& other_miss_ledit_instance){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::swap(MSLedit<CharType, StringType>& other_miss_ledit_instance){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::string tmp = other_miss_ledit_instance.str();
             other_miss_ledit_instance.setText(str());
@@ -2973,67 +2980,67 @@ namespace MXPSQL{
         }
 
 
-        template<typename StringType>
-        std::string MSLedit<StringType>::getText(){
+        template<typename CharType, typename StringType>
+        std::string MSLedit<CharType, StringType>::getText(){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return getText(true, -1, -1);
         }
 
-        template<typename StringType>
-        std::string MSLedit<StringType>::getRawText(){
+        template<typename CharType, typename StringType>
+        std::string MSLedit<CharType, StringType>::getRawText(){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return getText(false, -1, -1);
         }
 
-        template<typename StringType>
-        std::string MSLedit<StringType>::str(){
+        template<typename CharType, typename StringType>
+        std::string MSLedit<CharType, StringType>::str(){
             return getText(false, -1, -1);
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::updateText(){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::updateText(){
             setText(str());
         }
 
 
-        template<typename StringType>
-        void MSLedit<StringType>::setCString(char* cstr){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::setCString(char* cstr){
             setText(std::string(cstr));
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::setCString(const char* ccstr){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::setCString(const char* ccstr){
             setCString((char*) ccstr);
         }
 
-        template<typename StringType>
-        char* MSLedit<StringType>::getCString(bool formatted, long int begin, long int end){
+        template<typename CharType, typename StringType>
+        char* MSLedit<CharType, StringType>::getCString(bool formatted, long int begin, long int end){
             std::string cp = getText(formatted, begin, end);
             char* cstr = new char[cp.length() + 1];
             cp.copy(cstr, cp.length() + 1);
             return cstr;
         }
 
-        template<typename StringType>
-        const char* MSLedit<StringType>::getConstCString(bool formatted, long int begin, long int end){
+        template<typename CharType, typename StringType>
+        const char* MSLedit<CharType, StringType>::getConstCString(bool formatted, long int begin, long int end){
             return (const char*) getCString(formatted, begin, end);
         }
 
-        template<typename StringType>
-        std::unique_ptr<char[]> MSLedit<StringType>::getUniqueCString(bool formatted, long int begin, long int end){
+        template<typename CharType, typename StringType>
+        std::unique_ptr<char[]> MSLedit<CharType, StringType>::getUniqueCString(bool formatted, long int begin, long int end){
             return std::unique_ptr<char[]>(getCString(formatted, begin, end));
         }
 
-        template<typename StringType>
-        std::shared_ptr<char[]> MSLedit<StringType>::getSharedCString(bool formatted, long int begin, long int end){
+        template<typename CharType, typename StringType>
+        std::shared_ptr<char[]> MSLedit<CharType, StringType>::getSharedCString(bool formatted, long int begin, long int end){
             return std::shared_ptr<char[]>(getCString(formatted, begin, end));
         }
 
 
-        template<typename StringType>
-        void MSLedit<StringType>::setBuffer(MSLedit<StringType>::vec_type buffer){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::setBuffer(MSLedit<CharType, StringType>::vec_type buffer){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
-            MSLedit<StringType>::vec_type vectr(buffer);
+            MSLedit<CharType, StringType>::vec_type vectr(buffer);
             std::string tmpbuf;
             this->buffer.clear();
             {
@@ -3053,14 +3060,14 @@ namespace MXPSQL{
         }
 
 
-        template<typename StringType>
-        typename MSLedit<StringType>::vec_type MSLedit<StringType>::getBuffer(){
+        template<typename CharType, typename StringType>
+        typename MSLedit<CharType, StringType>::vec_type MSLedit<CharType, StringType>::getBuffer(){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return buffer;
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::setBuffer(std::vector<char> cbuffer){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::setBuffer(std::vector<char> cbuffer){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::vector<char> tmpcbuffer(cbuffer);
             std::string s(tmpcbuffer.begin(), tmpcbuffer.end());
@@ -3068,38 +3075,38 @@ namespace MXPSQL{
         }
 
 
-        template<typename StringType>
-        void MSLedit<StringType>::print(bool formatted, long int begin, long int end){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::print(bool formatted, long int begin, long int end){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             print(formatted, std::cout, begin, end);
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::print(bool formatted, std::ostream& stream, long int begin, long int end){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::print(bool formatted, std::ostream& stream, long int begin, long int end){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             stream << getText(formatted, begin, end);
         }
 
         /* 
-        template<typename StringType>
-        void MSLedit<StringType>::print(bool formatted, std::stringstream& stream, long int begin, long int end){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::print(bool formatted, std::stringstream& stream, long int begin, long int end){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             print(formatted, stream, begin, end);
         } */
 
 
-        template<typename StringType>
-        void MSLedit<StringType>::dump(bool formatted){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::dump(bool formatted){
             dump(formatted, std::cout);
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::dump(bool formatted, std::ostream& stream){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::dump(bool formatted, std::ostream& stream){
             stream << dumpstr(formatted);
         }
 
-        template<typename StringType>
-        std::string MSLedit<StringType>::dumpstr(bool formatted){
+        template<typename CharType, typename StringType>
+        std::string MSLedit<CharType, StringType>::dumpstr(bool formatted){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::string state = "";
             std::stringstream ss;
@@ -3133,7 +3140,7 @@ namespace MXPSQL{
                     ss << "\t\"StrArray\": [" << std::endl;
 
                     {
-                        MSLedit<StringType>::vec_type Stringies = getBuffer();
+                        MSLedit<CharType, StringType>::vec_type Stringies = getBuffer();
                         for(size_t i = 0; i < Stringies.size(); i++){
                             std::string Stringy = Stringies.at(i);
                             ss << "\t\t\"" << Stringy << "\"";
@@ -3170,7 +3177,7 @@ namespace MXPSQL{
                     ss << "StrArray: " << std::endl;
 
                     {
-                        MSLedit<StringType>::vec_type Stringies = getBuffer();
+                        MSLedit<CharType, StringType>::vec_type Stringies = getBuffer();
                         for(size_t i = 0; i < Stringies.size(); i++){
                             std::string Stringy = Stringies.at(i);
                             ss << "\t\"" << Stringy << "\"" << std::endl;
@@ -3185,16 +3192,16 @@ namespace MXPSQL{
 
 
 
-        template<typename StringType>
-        void MSLedit<StringType>::appendAtEnd(std::string line){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::appendAtEnd(std::string line){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::istringstream iss(line);
             std::string token;
             while(std::getline(iss, token, '\n')) buffer.push_back(token);
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::appendAtLine(int linenum, std::string line){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::appendAtLine(int linenum, std::string line){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::string l = stringAtLine((size_t) linenum) + line;
 
@@ -3210,11 +3217,11 @@ namespace MXPSQL{
             }
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::insertAtLine(int linenum, std::string line){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::insertAtLine(int linenum, std::string line){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             if(linenum > (int) lineNums() || linenum < 1) throw std::out_of_range("Attempting to edit beyond array bound");
-            MSLedit<StringType>::vec_type tmpbuffer(buffer);
+            MSLedit<CharType, StringType>::vec_type tmpbuffer(buffer);
             std::istringstream iss(line);
             std::string token;
             for(auto it = tmpbuffer.begin() + linenum - 1; std::getline(iss, token, '\n'); it++){
@@ -3224,24 +3231,24 @@ namespace MXPSQL{
             setBuffer(tmpbuffer);
         }
 
-        template<typename StringType>
-        std::pair<size_t, size_t> MSLedit<StringType>::search(std::string text2search){
+        template<typename CharType, typename StringType>
+        std::pair<size_t, size_t> MSLedit<CharType, StringType>::search(std::string text2search){
             return search(text2search, 1);
         }
 
-        template<typename StringType>
-        std::pair<size_t, size_t> MSLedit<StringType>::search(std::string text2search, size_t begin_line){
+        template<typename CharType, typename StringType>
+        std::pair<size_t, size_t> MSLedit<CharType, StringType>::search(std::string text2search, size_t begin_line){
             std::vector<std::pair<size_t, size_t>> s = search(text2search, begin_line, 1);
             if(s.size() < 1) return std::make_pair(std::string::npos, std::string::npos);
             else return s[0];
         }
 
-        template<typename StringType>
-        std::vector<std::pair<size_t, size_t>> MSLedit<StringType>::search(std::string text2search, size_t begin_line, size_t count){
+        template<typename CharType, typename StringType>
+        std::vector<std::pair<size_t, size_t>> MSLedit<CharType, StringType>::search(std::string text2search, size_t begin_line, size_t count){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::vector<std::pair<size_t, size_t>> poses;
             updateText();
-            MSLedit<StringType>::vec_type vectr(buffer);
+            MSLedit<CharType, StringType>::vec_type vectr(buffer);
 
             for(size_t i = begin_line-1, c = 0; i < vectr.size() && (count == std::string::npos || c < count); i++){
                 std::string line = vectr.at(i);
@@ -3256,24 +3263,24 @@ namespace MXPSQL{
             return poses;
         }
 
-        template<typename StringType>
-        std::pair<size_t, size_t> MSLedit<StringType>::searchRegex(std::string regex){
+        template<typename CharType, typename StringType>
+        std::pair<size_t, size_t> MSLedit<CharType, StringType>::searchRegex(std::string regex){
             return searchRegex(regex, 1);
         }
 
-        template<typename StringType>
-        std::pair<size_t, size_t> MSLedit<StringType>::searchRegex(std::string regex, size_t begin_line){
+        template<typename CharType, typename StringType>
+        std::pair<size_t, size_t> MSLedit<CharType, StringType>::searchRegex(std::string regex, size_t begin_line){
             std::vector<std::pair<size_t, size_t>> rs = searchRegex(regex, begin_line, 1);
             if(rs.size() < 1) return std::make_pair(std::string::npos, std::string::npos);
             else return rs[0];
         }
 
-        template<typename StringType>
-        std::vector<std::pair<size_t, size_t>> MSLedit<StringType>::searchRegex(std::string regex, size_t begin_line, size_t counts){
+        template<typename CharType, typename StringType>
+        std::vector<std::pair<size_t, size_t>> MSLedit<CharType, StringType>::searchRegex(std::string regex, size_t begin_line, size_t counts){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::vector<std::pair<size_t, size_t>> poses;
             updateText();
-            MSLedit<StringType>::vec_type vectr(buffer);
+            MSLedit<CharType, StringType>::vec_type vectr(buffer);
 
             std::regex regex_str_expr(regex);
 
@@ -3290,8 +3297,8 @@ namespace MXPSQL{
             return poses;
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::editLine(int linenum, std::string line){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::editLine(int linenum, std::string line){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             if(linenum > (int) lineNums() || linenum < 1) throw std::out_of_range("Attempting to edit beyond array bound");
             std::istringstream iss(line);
@@ -3307,8 +3314,8 @@ namespace MXPSQL{
             }
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::editChar(int index, char character){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::editChar(int index, char character){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::string t = str();
             if(index > (int) length() || index < 1) throw std::out_of_range("Attempting to edit beyond array beyond");
@@ -3316,30 +3323,30 @@ namespace MXPSQL{
             setText(t);
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::deleteAtLine(int linenum){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::deleteAtLine(int linenum){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             if(linenum > (int) lineNums() || linenum < 1) throw std::out_of_range("Attempting to print beyond array bound");
             buffer.erase(buffer.begin() + linenum - 1);
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::clear(){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::clear(){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             buffer.clear();
         }
 
 
-        template<typename StringType>
-        void MSLedit<StringType>::append(char c){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::append(char c){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::string s = "";
             s += c;
             append(s);
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::append(char* cstr){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::append(char* cstr){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             if(cstr == NULL && cstr == nullptr){
                 append("");
@@ -3348,8 +3355,8 @@ namespace MXPSQL{
             append(const_cast<const char*>(cstr));
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::append(const char* ccstr){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::append(const char* ccstr){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::string s = "";
             if(ccstr == NULL || ccstr == nullptr){
@@ -3364,44 +3371,44 @@ namespace MXPSQL{
             append(s);
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::append(double d){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::append(double d){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             append(std::to_string(d));
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::append(float f){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::append(float f){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             append(std::to_string(f));
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::append(int i){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::append(int i){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             append(std::to_string(i));
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::append(long int li){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::append(long int li){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             append(std::to_string(li));
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::append(size_t s){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::append(size_t s){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             append(std::to_string(s));
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::append(bool boolean){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::append(bool boolean){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             append(boolean ? "true" : "false");
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::append(std::string str){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::append(std::string str){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             /* if(str.find_first_not_of('\n') != std::string::npos){
                 std::istringstream iss(str);
@@ -3416,38 +3423,38 @@ namespace MXPSQL{
             insert(size(), str);
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::append(MSLedit miss){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::append(MSLedit miss){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             append(miss.str());
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::append(void* ptr){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::append(void* ptr){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             append_printf("%p", ptr);
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::append(std::nullptr_t nptr){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::append(std::nullptr_t nptr){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             append(((void*) nptr));
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::append(long int* liptr){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::append(long int* liptr){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             append(((void*) liptr));
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::appendNewLine(){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::appendNewLine(){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             append('\n');
         }
 
-        template<typename StringType>
-        int MSLedit<StringType>::append_printf(std::string format, ...){
+        template<typename CharType, typename StringType>
+        int MSLedit<CharType, StringType>::append_printf(std::string format, ...){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             va_list vaa;
             int status = 0;
@@ -3457,51 +3464,51 @@ namespace MXPSQL{
             return status;
         }
 
-        template<typename StringType>
-        int MSLedit<StringType>::append_vprintf(std::string format, va_list vaargs){
+        template<typename CharType, typename StringType>
+        int MSLedit<CharType, StringType>::append_vprintf(std::string format, va_list vaargs){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return insert_vprintf(size(), format, vaargs);
         }
 
 
-        template<typename StringType>
-        void MSLedit<StringType>::insert(size_t position, bool boolean){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::insert(size_t position, bool boolean){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             insert(position, boolean ? "true" : "false");
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::insert(size_t position, char* cstr){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::insert(size_t position, char* cstr){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             insert(position, std::string(cstr));
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::insert(size_t position, const char* ccstr){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::insert(size_t position, const char* ccstr){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             insert(position, std::string(ccstr));
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::insert(size_t position, int i){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::insert(size_t position, int i){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             insert(position, std::to_string(i));
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::insert(size_t position, long int li){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::insert(size_t position, long int li){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             insert(position, std::to_string(li));
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::insert(size_t position, size_t s){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::insert(size_t position, size_t s){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             insert(position, std::to_string(s));
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::insert(size_t position, std::string estr){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::insert(size_t position, std::string estr){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::string tstr = str();
             tstr.insert(position, estr);
@@ -3509,38 +3516,38 @@ namespace MXPSQL{
             setText(tstr);
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::insert(size_t position, MSLedit miss){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::insert(size_t position, MSLedit miss){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             insert(position, miss.getText());
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::insert(size_t position, void* ptr){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::insert(size_t position, void* ptr){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             insert_printf(position, "%p", ptr);
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::insert(size_t position, std::nullptr_t nptr){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::insert(size_t position, std::nullptr_t nptr){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             insert(position, ((void*) nptr));
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::insert(size_t position, long int* liptr){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::insert(size_t position, long int* liptr){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             insert(position, ((void*) liptr));
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::insertnewline(size_t position){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::insertnewline(size_t position){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             insert('\n', position);
         }
 
-        template<typename StringType>
-        int MSLedit<StringType>::insert_printf(size_t position, std::string format, ...){
+        template<typename CharType, typename StringType>
+        int MSLedit<CharType, StringType>::insert_printf(size_t position, std::string format, ...){
             va_list vaa;
             int status = 0;
             va_start(vaa, format);
@@ -3549,8 +3556,8 @@ namespace MXPSQL{
             return status;
         }
 
-        template<typename StringType>
-        int MSLedit<StringType>::insert_vprintf(size_t position, std::string format, va_list vaargs){
+        template<typename CharType, typename StringType>
+        int MSLedit<CharType, StringType>::insert_vprintf(size_t position, std::string format, va_list vaargs){
             std::string ssstr;
             int status = 0;
             int size = std::vsnprintf(nullptr, 0, format.c_str(), vaargs);
@@ -3567,16 +3574,16 @@ namespace MXPSQL{
         }
 
 
-        template<typename StringType>
-        void MSLedit<StringType>::deleteAt(size_t begin, size_t end){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::deleteAt(size_t begin, size_t end){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::string t = str();
             t.erase(begin, end);
             setText(t);
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::deleteCharAt(size_t index){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::deleteCharAt(size_t index){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::string t = str();
             t.erase(index, 1);
@@ -3584,23 +3591,23 @@ namespace MXPSQL{
         }
 
 
-        template<typename StringType>
-        size_t MSLedit<StringType>::indexOf(std::string text){
+        template<typename CharType, typename StringType>
+        size_t MSLedit<CharType, StringType>::indexOf(std::string text){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::string t = str();
             return t.find(text);
         }
 
-        template<typename StringType>
-        size_t MSLedit<StringType>::indexOf(std::string text, size_t begin){
+        template<typename CharType, typename StringType>
+        size_t MSLedit<CharType, StringType>::indexOf(std::string text, size_t begin){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return str().find(text, begin);
         }
 
 
-        template<typename StringType>
-        typename MSLedit<StringType>::vec_type MSLedit<StringType>::split(char delimiter){
-            MSLedit<StringType>::vec_type misses;
+        template<typename CharType, typename StringType>
+        typename MSLedit<CharType, StringType>::vec_type MSLedit<CharType, StringType>::split(char delimiter){
+            MSLedit<CharType, StringType>::vec_type misses;
             std::string t = str();
             std::string token;
             std::istringstream iss(t);
@@ -3608,9 +3615,9 @@ namespace MXPSQL{
             return misses;
         }
 
-        template<typename StringType>
-        typename MSLedit<StringType>::vec_type MSLedit<StringType>::split(std::string delimiter){
-            MSLedit<StringType>::vec_type misses;
+        template<typename CharType, typename StringType>
+        typename MSLedit<CharType, StringType>::vec_type MSLedit<CharType, StringType>::split(std::string delimiter){
+            MSLedit<CharType, StringType>::vec_type misses;
             std::string t = str();
             size_t start = 0;
             size_t end = t.find(delimiter);
@@ -3625,21 +3632,21 @@ namespace MXPSQL{
         }
 
 
-        template<typename StringType>
-        std::string MSLedit<StringType>::substring(size_t pos){
+        template<typename CharType, typename StringType>
+        std::string MSLedit<CharType, StringType>::substring(size_t pos){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return str().substr(pos);
         }
 
-        template<typename StringType>
-        std::string MSLedit<StringType>::substring(size_t pos, size_t end){
+        template<typename CharType, typename StringType>
+        std::string MSLedit<CharType, StringType>::substring(size_t pos, size_t end){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return str().substr(pos, end);
         }
 
 
-        template<typename StringType>
-        void MSLedit<StringType>::reverse(){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::reverse(){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::string t = str();
             std::string rt(t.rbegin(), t.rend());
@@ -3647,14 +3654,14 @@ namespace MXPSQL{
         }
 
 
-        template<typename StringType>
-        void MSLedit<StringType>::setConfig(std::map<std::string, std::string> c2){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::setConfig(std::map<std::string, std::string> c2){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             strEditorConfig = c2;
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::parseConfig(std::string configPath){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::parseConfig(std::string configPath){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::map<std::string, std::string>& data = strEditorConfig;
             std::ifstream cFile(configPath);
@@ -3683,8 +3690,8 @@ namespace MXPSQL{
             }
         }
 
-        template<typename StringType>
-        std::string MSLedit<StringType>::buildConfig(){
+        template<typename CharType, typename StringType>
+        std::string MSLedit<CharType, StringType>::buildConfig(){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             std::map<std::string, std::string>& data = strEditorConfig;
             std::stringstream ss;
@@ -3694,34 +3701,34 @@ namespace MXPSQL{
             return ss.str();
         }
 
-        template<typename StringType>
-        std::map<std::string, std::string> MSLedit<StringType>::getConfig(){
+        template<typename CharType, typename StringType>
+        std::map<std::string, std::string> MSLedit<CharType, StringType>::getConfig(){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return strEditorConfig;
         }
 
-        template<typename StringType>
-        void MSLedit<StringType>::setKey(std::string key, std::string value){
+        template<typename CharType, typename StringType>
+        void MSLedit<CharType, StringType>::setKey(std::string key, std::string value){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             strEditorConfig[key] = value;
         }
 
-        template<typename StringType>
-        std::string MSLedit<StringType>::getKey(std::string key){
+        template<typename CharType, typename StringType>
+        std::string MSLedit<CharType, StringType>::getKey(std::string key){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return strEditorConfig[key];
         }
 
-        template<typename StringType>
-        bool MSLedit<StringType>::keyExists(std::string key){
+        template<typename CharType, typename StringType>
+        bool MSLedit<CharType, StringType>::keyExists(std::string key){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             auto it = strEditorConfig.find(key);
             return (it != strEditorConfig.end());
         }
 
 
-        template<typename StringType>
-        int MSLedit<StringType>::repl(){
+        template<typename CharType, typename StringType>
+        int MSLedit<CharType, StringType>::repl(){
             std::string prompt = "> ";
             {
                 std::unique_lock<std::recursive_mutex> lock(lock_mutex);
@@ -3731,24 +3738,24 @@ namespace MXPSQL{
             return repl(prompt);
         }
 
-        template<typename StringType>
-        int MSLedit<StringType>::repl(std::string prompt){
+        template<typename CharType, typename StringType>
+        int MSLedit<CharType, StringType>::repl(std::string prompt){
             return repl(prompt, std::cout, std::cin, std::cerr);
         }
 
-        template<typename StringType>
-        int MSLedit<StringType>::repl(std::string prompt, std::ostream& out, std::istream& in, std::ostream& err){
+        template<typename CharType, typename StringType>
+        int MSLedit<CharType, StringType>::repl(std::string prompt, std::ostream& out, std::istream& in, std::ostream& err){
             return repl(prompt, out, in, [](std::istream& input, std::string& out) -> bool{
                 return !!std::getline(input, out, '\n');
             }, err);
         }
 
-        template<typename StringType>
-        int MSLedit<StringType>::repl(std::string prompt, std::ostream& out, std::istream& in, std::function<bool(std::istream&, std::string&)> getlineInputHandler, std::ostream& err){
+        template<typename CharType, typename StringType>
+        int MSLedit<CharType, StringType>::repl(std::string prompt, std::ostream& out, std::istream& in, std::function<bool(std::istream&, std::string&)> getlineInputHandler, std::ostream& err){
             int status = MSLedit::Status_Success;
             bool run = true;
             std::string l = "";
-            MSLedit<StringType>::vec_type ls;
+            MSLedit<CharType, StringType>::vec_type ls;
 
             {
                 bool allowBanner = true;
@@ -3759,7 +3766,7 @@ namespace MXPSQL{
 
                 if(allowBanner){
                     size_t s = 0;
-                    MSLedit<StringType>::vec_type banners{
+                    MSLedit<CharType, StringType>::vec_type banners{
                         "MSLedit", 
                         "Written by MXPSQL", 
                         "Library licensed to you under the MIT License",
@@ -3858,7 +3865,7 @@ namespace MXPSQL{
 
                     begin = ls.at(0);
                     size_t arglen = ls.size() - 1;
-                    MSLedit<StringType>::vec_type args(ls);
+                    MSLedit<CharType, StringType>::vec_type args(ls);
                     args.erase(args.begin());
                     
                     // # and <# are comments
@@ -4003,7 +4010,7 @@ namespace MXPSQL{
                         }
                         else{
                             try{
-                                MSLedit<StringType>::vec_type slicedargs(args);
+                                MSLedit<CharType, StringType>::vec_type slicedargs(args);
                                 int line = stoi(slicedargs[0]);
                                 slicedargs.erase(slicedargs.begin());
                                 std::stringstream ss;
@@ -4046,7 +4053,7 @@ namespace MXPSQL{
                                     {
                                         ((void)backEdit); // not used rn
 
-                                        MSLedit<StringType>::vec_type slicedargs(args);
+                                        MSLedit<CharType, StringType>::vec_type slicedargs(args);
                                         lineAppend = stoi(slicedargs[0]);
                                         this->appendAtLine(lineAppend, "");
                                         slicedargs.erase(slicedargs.begin());
@@ -4068,7 +4075,7 @@ namespace MXPSQL{
                                     {
                                         std::ostringstream bannerfs;
 
-                                        MSLedit<StringType>::vec_type BannersOk{"We are now going to the now better (but still dumb) editing service. " ,
+                                        MSLedit<CharType, StringType>::vec_type BannersOk{"We are now going to the now better (but still dumb) editing service. " ,
                                         "Type the EOF string (exactly, no spaces or anything funny) to exit. ",
                                         "Your EOF string is: '" + eofStr + "'",
                                         "Oh, your EOF string '" + eofStr + "' is not included.",
@@ -4133,7 +4140,7 @@ namespace MXPSQL{
                         }
                         else{
                             try{
-                                MSLedit<StringType>::vec_type slicedargs(args);
+                                MSLedit<CharType, StringType>::vec_type slicedargs(args);
                                 int line = stoi(slicedargs[0]);
                                 slicedargs.erase(slicedargs.begin());
                                 std::stringstream ss;
@@ -4168,7 +4175,7 @@ namespace MXPSQL{
                         }
                         else{
                             try{
-                                MSLedit<StringType>::vec_type slicedargs(args);
+                                MSLedit<CharType, StringType>::vec_type slicedargs(args);
                                 int line = stoi(slicedargs[0]);
                                 slicedargs.erase(slicedargs.begin());
 
@@ -4287,7 +4294,7 @@ namespace MXPSQL{
                         }
                         else{
                             try{
-                                MSLedit<StringType>::vec_type slicedargs(args);
+                                MSLedit<CharType, StringType>::vec_type slicedargs(args);
                                 int line = stoi(slicedargs[0]);
                                 slicedargs.erase(slicedargs.begin());
                                 std::stringstream ss;
@@ -4468,7 +4475,7 @@ namespace MXPSQL{
                             catch(std::runtime_error& re){
                                 int err_thing = 0;
                                 {
-                                    MSLedit<StringType>::vec_type tok;
+                                    MSLedit<CharType, StringType>::vec_type tok;
                                     {
                                         std::string token = "";
                                         std::istringstream iss(re.what());
@@ -4632,71 +4639,71 @@ namespace MXPSQL{
         }
 
 
-        template<typename StringType>
-        int MSLedit<StringType>::compare(std::string mystr){
+        template<typename CharType, typename StringType>
+        int MSLedit<CharType, StringType>::compare(std::string mystr){
             return str().compare(mystr);
         }
 
-        template<typename StringType>
-        int MSLedit<StringType>::compare(MSLedit<StringType>& miss){
+        template<typename CharType, typename StringType>
+        int MSLedit<CharType, StringType>::compare(MSLedit<CharType, StringType>& miss){
             return compare(miss.str());
         }
 
-        template<typename StringType>
-        int MSLedit<StringType>::compare(char* cstr){
+        template<typename CharType, typename StringType>
+        int MSLedit<CharType, StringType>::compare(char* cstr){
             return compare(std::string(cstr));
         }
 
-        template<typename StringType>
-        int MSLedit<StringType>::compare(const char* ccstr){
+        template<typename CharType, typename StringType>
+        int MSLedit<CharType, StringType>::compare(const char* ccstr){
             return compare(std::string(ccstr));
         }
 
 
-        template<typename StringType>
-        bool MSLedit<StringType>::stupidSimpleSummingCompare(std::string mystr, size_t* thischksum, size_t* otherchksum){
+        template<typename CharType, typename StringType>
+        bool MSLedit<CharType, StringType>::stupidSimpleSummingCompare(std::string mystr, size_t* thischksum, size_t* otherchksum){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return compareStringSSS(getText(false, -1, -1), mystr, thischksum, otherchksum);
         }
 
-        template<typename StringType>
-        bool MSLedit<StringType>::stupidSimpleSummingCompare(MSLedit<StringType>& miss, size_t* thischksum, size_t* otherchksum){
+        template<typename CharType, typename StringType>
+        bool MSLedit<CharType, StringType>::stupidSimpleSummingCompare(MSLedit<CharType, StringType>& miss, size_t* thischksum, size_t* otherchksum){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return stupidSimpleSummingCompare(miss.getText(false, -1, -1), thischksum, otherchksum);
         }
 
-        template<typename StringType>
-        bool MSLedit<StringType>::md5Compare(std::string mystr){
+        template<typename CharType, typename StringType>
+        bool MSLedit<CharType, StringType>::md5Compare(std::string mystr){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return compareStringMD5(getText(false, -1, -1), mystr);
         }
 
-        template<typename StringType>
-        bool MSLedit<StringType>::md5Compare(MSLedit<StringType>& miss){
+        template<typename CharType, typename StringType>
+        bool MSLedit<CharType, StringType>::md5Compare(MSLedit<CharType, StringType>& miss){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return md5Compare(miss.getText(false, -1, -1));
         }
 
-        template<typename StringType>
-        bool MSLedit<StringType>::crc32Compare(std::string mystr){
+        template<typename CharType, typename StringType>
+        bool MSLedit<CharType, StringType>::crc32Compare(std::string mystr){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return compareStringCRC32(getText(false, -1, -1), mystr);
         }
 
-        template<typename StringType>
-        bool MSLedit<StringType>::crc32Compare(MSLedit<StringType>& miss){
+        template<typename CharType, typename StringType>
+        bool MSLedit<CharType, StringType>::crc32Compare(MSLedit<CharType, StringType>& miss){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return crc32Compare(miss.getText(false, -1, -1));
         }
 
-        template<typename StringType>
-        bool MSLedit<StringType>::sha1Compare(std::string mystr){
+        template<typename CharType, typename StringType>
+        bool MSLedit<CharType, StringType>::sha1Compare(std::string mystr){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return compareStringSHA1(getText(false, -1, -1), mystr);
         }
 
-        template<typename StringType>
-        bool MSLedit<StringType>::sha1Compare(MSLedit<StringType>& miss){
+        template<typename CharType, typename StringType>
+        bool MSLedit<CharType, StringType>::sha1Compare(MSLedit<CharType, StringType>& miss){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return sha1Compare(miss.getText(false, -1, -1));
         }
@@ -4710,8 +4717,8 @@ namespace MXPSQL{
          * @param miss the instance
          * @return std::ostream& os
          */
-        template<typename StringType>
-        std::ostream& operator<<(std::ostream& os, MSLedit<StringType>& miss){
+        template<typename CharType, typename StringType>
+        std::ostream& operator<<(std::ostream& os, MSLedit<CharType, StringType>& miss){
             os << miss.getText();
             return os;
         }
@@ -4724,8 +4731,8 @@ namespace MXPSQL{
          * @param miss the instance
          * @return std::ostream& is
          */
-        template<typename StringType>
-        std::istream& operator>>(std::istream& is, MSLedit<StringType>& miss){
+        template<typename CharType, typename StringType>
+        std::istream& operator>>(std::istream& is, MSLedit<CharType, StringType>& miss){
             std::stringstream ss;
             std::string token;
             while(std::getline(is, token, '\n')) ss << token << '\n';
@@ -4734,8 +4741,8 @@ namespace MXPSQL{
         }
 
 
-        template<typename StringType>
-        char MSLedit<StringType>::operator[](int index){
+        template<typename CharType, typename StringType>
+        char MSLedit<CharType, StringType>::operator[](int index){
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             return str()[index];
         }
@@ -4745,17 +4752,17 @@ namespace MXPSQL{
          * @brief std::string version of MSLedit
          * 
          */
-        using MSLedit_Str = MSLedit<std::string>;
+        using MSLedit_Str = MSLedit<char, std::string>;
         /**
          * @brief std::wstring version of MSLedit
          * 
          */
-        using MSLedit_WStr = MSLedit<std::wstring>;
+        using MSLedit_WStr = MSLedit<wchar_t, std::wstring>;
         /**
          * @brief unsigned string version of MSLedit
          * 
          */
-        using MSLedit_UStr = MSLedit<std::basic_string<unsigned char>>;
+        using MSLedit_UStr = MSLedit<unsigned char, std::basic_string<unsigned char>>;
     };
 };
 

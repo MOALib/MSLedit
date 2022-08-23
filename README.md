@@ -1,5 +1,7 @@
 # MSLedit
 
+> This is the old version, There will be a new rewritten from scratch, backwards incompatible version!!!
+
 A string builder and editor library written in C++11.
 
 ## How to build
